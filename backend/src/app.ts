@@ -107,15 +107,13 @@ app.use('/api', routes);
 // Backend Dashboard UI under /api
 // =============================================
 const dashboardPublicDir = path.join(__dirname, '../public');
+
+// Serve static files (CSS, JS, images, etc.)
 app.use('/api', express.static(dashboardPublicDir));
 
-app.get('/api', (_req: Request, res: Response) => {
-  res.sendFile(path.join(dashboardPublicDir, 'index.html'));
-});
-
-// SPA fallback for dashboard client-side routes under /api
-// Using path-to-regexp v6 syntax: :path(.*) matches any path
-app.get('/api/:path(.*)', (_req: Request, res: Response) => {
+// SPA fallback: serve index.html for any unmatched /api routes
+// Middleware (not a route) avoids path-to-regexp parsing issues
+app.use('/api', (_req: Request, res: Response) => {
   res.sendFile(path.join(dashboardPublicDir, 'index.html'));
 });
 
