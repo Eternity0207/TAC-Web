@@ -113,8 +113,9 @@ app.get('/api', (_req: Request, res: Response) => {
   res.sendFile(path.join(dashboardPublicDir, 'index.html'));
 });
 
-// SPA fallback for dashboard client-side routes under /api/*
-app.get('/api/*', (_req: Request, res: Response) => {
+// SPA fallback for dashboard client-side routes under /api
+// Using path-to-regexp v6 syntax: :path(.*) matches any path
+app.get('/api/:path(.*)', (_req: Request, res: Response) => {
   res.sendFile(path.join(dashboardPublicDir, 'index.html'));
 });
 
