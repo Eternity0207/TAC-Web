@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import {
   authMiddleware,
@@ -30,6 +30,13 @@ import * as productController from "../controllers/productController";
 import * as socialMediaController from "../controllers/socialMediaController";
 
 const router = Router();
+
+// Mounted under /api in app.ts.
+// originalUrl keeps the full incoming path, while url is relative to this router mount.
+router.use((req: Request, _res: Response, next: NextFunction) => {
+  console.log(`[API] ${req.method} originalUrl=${req.originalUrl} baseUrl=${req.baseUrl} url=${req.url}`);
+  next();
+});
 
 const profilePhotoUpload = multer({
   storage: multer.memoryStorage(),

@@ -71,16 +71,7 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Debug incoming URLs from reverse proxy.
 app.use((req: Request, _res: Response, next: NextFunction) => {
-  console.log(`[REQ] ${req.method} originalUrl=${req.originalUrl}`);
-  next();
-});
-
-// If proxy forwards API routes without /api prefix, normalize them.
-const apiRouteWithoutPrefix = /^\/(health|auth|orders|staff|reviews|coupons|products|enquiry|pay|webhooks|users|profile|dashboard|analytics|bulk-orders|bulk-customers|sales|inventory|config|skus|careers|applications|interns|credentials|tags|social-media|launches|unit-economics|team|monthly-targets|bulk-enquiries|video-reviews|whatsapp-reviews)(\/|$)/;
-app.use((req: Request, _res: Response, next: NextFunction) => {
-  if (!req.url.startsWith('/api') && apiRouteWithoutPrefix.test(req.url)) {
-    req.url = `/api${req.url}`;
-  }
+  console.log(`[APP] ${req.method} originalUrl=${req.originalUrl} url=${req.url}`);
   next();
 });
 
