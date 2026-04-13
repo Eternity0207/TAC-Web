@@ -333,9 +333,8 @@ router.get("/staff/performance", authMiddleware, authorize(UserRole.ADMIN, UserR
 // Catch-all for undefined routes
 // =============================================
 router.use((req: Request, res: Response, next) => {
-  // Let app-level /api SPA fallback handle browser GET routes.
-  const acceptsHtml = (req.headers.accept || "").includes("text/html");
-  if (req.method === "GET" && acceptsHtml) {
+  // Let app-level /api SPA fallback handle unknown GET routes.
+  if (req.method === "GET") {
     return next();
   }
 

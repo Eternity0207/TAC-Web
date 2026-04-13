@@ -113,8 +113,8 @@ app.get('/api', (_req: Request, res: Response) => {
   res.sendFile(path.join(dashboardPublicDir, 'index.html'));
 });
 
-// Keep API routes working while returning dashboard SPA for unknown /api/* paths.
-app.get(/^\/api\/(?!health$|orders(?:\/|$)|staff(?:\/|$)|reviews(?:\/|$)|coupons(?:\/|$)|products(?:\/|$)|enquiry(?:\/|$)|auth(?:\/|$)|webhooks(?:\/|$)|users(?:\/|$)|profile(?:\/|$)|dashboard(?:\/|$)|analytics(?:\/|$)|bulk-orders(?:\/|$)|bulk-customers(?:\/|$)|sales(?:\/|$)|inventory(?:\/|$)|config(?:\/|$)|skus(?:\/|$)|careers(?:\/|$)|applications(?:\/|$)|interns(?:\/|$)|credentials(?:\/|$)|tags(?:\/|$)|social-media(?:\/|$)|launches(?:\/|$)|unit-economics(?:\/|$)|team(?:\/|$)|monthly-targets(?:\/|$)|bulk-enquiries(?:\/|$)|video-reviews(?:\/|$)|whatsapp-reviews(?:\/|$)).*/, (_req: Request, res: Response) => {
+// SPA fallback for dashboard client-side routes under /api/*
+app.get('/api/*', (_req: Request, res: Response) => {
   res.sendFile(path.join(dashboardPublicDir, 'index.html'));
 });
 
