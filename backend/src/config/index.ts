@@ -40,19 +40,14 @@ export const config = {
         password: process.env.ADMIN_PASSWORD || 'change-this',
     },
 
-    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
-    adminUrl: process.env.ADMIN_URL || 'http://localhost:5173',
-    backendUrl: process.env.BACKEND_URL || 'http://localhost:3003',
-    uploadsUrl: process.env.BACKEND_UPLOADS_URL || 'http://localhost:3003/uploads',
+    frontendUrl: process.env.FRONTEND_URL || 'https://theawlacompany.com',
+    adminUrl: process.env.ADMIN_URL || 'https://admin.theawlacompany.com',
+    backendUrl: process.env.BACKEND_URL || process.env.ADMIN_URL || 'https://admin.theawlacompany.com',
+    uploadsUrl: process.env.BACKEND_UPLOADS_URL || `${process.env.BACKEND_URL || process.env.ADMIN_URL || 'https://admin.theawlacompany.com'}/uploads`,
 
     corsOrigins: process.env.CORS_ORIGINS ?
         process.env.CORS_ORIGINS.split(',') :
         [
-            'http://localhost:3000',
-            'http://localhost:5173',
-            'http://localhost:5174',
-            'http://localhost:5500',
-            'http://localhost:8080',
             'https://theawlacompany.com',
             'https://admin.theawlacompany.com'
         ],

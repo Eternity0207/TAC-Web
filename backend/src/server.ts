@@ -15,13 +15,14 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
 });
 
 const server = app.listen(config.port, () => {
+  const apiBase = `${config.backendUrl}/api`;
   console.log('================================================');
   console.log('🚀 Unified Order Management System');
   console.log('================================================');
-  console.log(`Server: http://localhost:${config.port}`);
-  console.log(`Health: http://localhost:${config.port}/api/health`);
-  console.log(`Admin Panel: http://localhost:${config.port}`);
-  console.log(`API Base: http://localhost:${config.port}/api`);
+  console.log(`Server: ${config.backendUrl}`);
+  console.log(`Health: ${apiBase}/health`);
+  console.log(`Admin Panel: ${config.adminUrl}`);
+  console.log(`API Base: ${apiBase}`);
   console.log(`Environment: ${config.nodeEnv}`);
   console.log(`Data Source: PostgreSQL`);
   console.log('================================================');

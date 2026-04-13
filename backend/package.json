@@ -12,7 +12,7 @@
     "user:update": "node list-users.js update",
     "user:remove": "node list-users.js remove",
     "build:frontend": "cd ../admin_frontend_oms-main && npm run build && cp -r dist/* ../unified-backend/public/",
-    "init-admin": "node -e \"require('dotenv').config(); const axios = require('axios'); axios.post('http://localhost:3003/api/auth/init').then(r => console.log(r.data)).catch(e => console.error(e.response?.data || e.message));\"",
+    "init-admin": "node -e \"require('dotenv').config(); const axios = require('axios'); const base=(process.env.BACKEND_URL || process.env.ADMIN_URL || 'https://admin.theawlacompany.com').replace(/\\/$/, ''); axios.post(base + '/api/auth/init').then(r => console.log(r.data)).catch(e => console.error(e.response?.data || e.message));\"",
     "test": "echo \"Error: no test specified\" && exit 1",
     "migrate": "ts-node migration/run.ts"
   },
