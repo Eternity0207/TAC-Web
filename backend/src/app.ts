@@ -3,7 +3,6 @@ import cors from 'cors';
 import morgan from 'morgan';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import path from 'path';
 import { config } from './config';
 import routes from './routes';
 
@@ -87,10 +86,7 @@ console.log('📄 Using PostgreSQL as data source');
 // Static Files
 // =============================================
 // Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
-// Serve admin frontend (if exists)
-app.use(express.static('public'));
+app.use('/uploads', express.static('uploads'));
 
 // =============================================
 // API Routes
@@ -105,35 +101,12 @@ app.get('/api', (req: Request, res: Response) => {
     success: true,
     name: 'Unified Order Management System API',
     version: '1.0.0',
-    description: 'Combined OMS Backend with Admin Panel',
+    description: 'Unified OMS Backend API',
     endpoints: {
       health: '/api/health',
-      documentation: '/api',
-      admin: '/'
+      documentation: '/api'
     }
   });
-});
-
-// =============================================
-// Admin Panel Routes
-// =============================================
-// Root route serves admin panel
-app.get('/', (req: Request, res: Response) => {
-  res.sendFile(path.join(__dirname, '../public', 'index.html'));
-});
-
-// SPA fallback for admin panel routes (non-API paths)
-app.get(/^(?!\/api).*/, (req: Request, res: Response) => {
-  // Check if the file exists in public directory first
-  const filePath = path.join(__dirname, '../public', req.path);
-  const fs = require('fs');
-
-  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-    return res.sendFile(filePath);
-  }
-
-  // Otherwise serve the admin panel SPA
-  res.sendFile(path.join(__dirname, '../public', 'index.html'));
 });
 
 // =============================================
