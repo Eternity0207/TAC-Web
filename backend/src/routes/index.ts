@@ -31,7 +31,7 @@ import * as socialMediaController from "../controllers/socialMediaController";
 
 const router = Router();
 
-// Skip API router handling for dashboard static assets under /api.
+// Skip router handling for dashboard static assets.
 router.use((req: Request, _res: Response, next: NextFunction) => {
   if (
     req.path.startsWith('/assets/') ||
@@ -44,8 +44,7 @@ router.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-// Mounted under /api in app.ts.
-// originalUrl keeps the full incoming path, while url is relative to this router mount.
+// originalUrl keeps the full incoming path, while url is router-relative.
 router.use((req: Request, _res: Response, next: NextFunction) => {
   console.log(`[API] ${req.method} originalUrl=${req.originalUrl} baseUrl=${req.baseUrl} url=${req.url}`);
   next();
@@ -346,7 +345,7 @@ router.get("/staff/performance", authMiddleware, authorize(UserRole.ADMIN, UserR
 // Catch-all for undefined routes
 // =============================================
 router.use((req: Request, res: Response, next) => {
-  // Let app-level /api SPA fallback handle unknown GET routes.
+  // Let app-level SPA fallback handle unknown GET routes.
   if (req.method === "GET") {
     return next();
   }

@@ -355,7 +355,7 @@ function renderPaymentResultPage(options: {
   const retryButton =
     allowRetry && orderId
       ? `
-        <a href="${config.backendUrl}/api/pay/bulk/${orderId}?type=${paymentType}" class="retry-btn">
+        <a href="${config.backendUrl}/pay/bulk/${orderId}?type=${paymentType}" class="retry-btn">
             🔄 Try Again
         </a>
     `

@@ -10,6 +10,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: tac-web-backend
+    env_file:
+      - ./backend/.env
 
   nginx:
     image: nginx:alpine

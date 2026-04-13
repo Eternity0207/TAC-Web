@@ -143,8 +143,8 @@ export function generatePaymentParams(data: PayUOrderData): PayUPaymentParams {
 
   // Determine callback URLs based on order type
   const callbackUrl = data.isBulkOrder
-    ? `${config.backendUrl}/api/webhooks/payu/bulk-callback`
-    : `${config.backendUrl}/api/webhooks/payu/callback`;
+    ? `${config.backendUrl}/webhooks/payu/bulk-callback`
+    : `${config.backendUrl}/webhooks/payu/callback`;
 
   return {
     key: config.payu.merchantKey,

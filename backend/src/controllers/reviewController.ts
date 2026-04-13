@@ -47,7 +47,7 @@ export async function submitReview(req: Request, res: Response): Promise<void> {
                         const buffer = Buffer.from(photo.base64, 'base64');
                         fs.writeFileSync(filepath, buffer);
                         // Generate URL for the photo
-                        photoUrls.push(`${config.backendUrl}/api/reviews/photo/${filename}`);
+                        photoUrls.push(`${config.backendUrl}/reviews/photo/${filename}`);
                     } catch (photoError) {
                         console.error('Photo save error:', photoError);
                     }
