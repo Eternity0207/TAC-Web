@@ -31,6 +31,19 @@ import * as socialMediaController from "../controllers/socialMediaController";
 
 const router = Router();
 
+// Skip API router handling for dashboard static assets under /api.
+router.use((req: Request, _res: Response, next: NextFunction) => {
+  if (
+    req.path.startsWith('/assets/') ||
+    req.path === '/favicon.ico' ||
+    req.path === '/logo.png'
+  ) {
+    return next('router');
+  }
+
+  next();
+});
+
 // Mounted under /api in app.ts.
 // originalUrl keeps the full incoming path, while url is relative to this router mount.
 router.use((req: Request, _res: Response, next: NextFunction) => {
