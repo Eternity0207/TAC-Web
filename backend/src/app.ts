@@ -8,6 +8,9 @@ import routes from './routes';
 
 const app = express();
 
+// App runs behind nginx reverse proxy in production.
+app.set('trust proxy', 1);
+
 // =============================================
 // Security Middleware
 // =============================================
@@ -92,22 +95,6 @@ app.use('/uploads', express.static('uploads'));
 // API Routes
 // =============================================
 app.use('/api', routes);
-
-// =============================================
-// API Info Route (moved to /api)
-// =============================================
-app.get('/api', (req: Request, res: Response) => {
-  res.json({
-    success: true,
-    name: 'Unified Order Management System API',
-    version: '1.0.0',
-    description: 'Unified OMS Backend API',
-    endpoints: {
-      health: '/api/health',
-      documentation: '/api'
-    }
-  });
-});
 
 // =============================================
 // Global Error Handling

@@ -46,6 +46,18 @@ const profilePhotoUpload = multer({
 // =============================================
 // Health Check
 // =============================================
+router.get("/", (_req: Request, res: Response) => {
+  res.json({
+    success: true,
+    name: "Unified Order Management System API",
+    version: "1.0.0",
+    endpoints: {
+      health: "/api/health",
+      base: "/api"
+    }
+  });
+});
+
 router.get("/health", (req: Request, res: Response) => {
   res.json({
     success: true,
