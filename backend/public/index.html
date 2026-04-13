@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#1a472a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="icon" type="image/x-icon" href="/assets/favicon-Du7uuyly.ico" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <title>Order Management | The Awla Company</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* Ensure left pane/sidebar remains scrollable even if bundled styles disable overflow */
+    aside,
+    [data-sidebar],
+    .sidebar,
+    .left-pane {
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch;
+      max-height: 100vh;
+    }
+  </style>
+
+  <!-- Override API URL for local development -->
+  <script>
+    // Set environment variables before app loads
+    window.VITE_API_URL = 'http://localhost:3003/api';
+    window.API_BASE_URL = 'http://localhost:3003/api';
+    window.REACT_APP_API_URL = 'http://localhost:3003/api';
+
+    // Comprehensive fetch override
+    const originalFetch = window.fetch;
+    window.fetch = function(input, init) {
+      let url = input;
+
+      if (typeof input === 'string') {
+        url = input.replace(/https?:\/\/api\.theawlacompany\.com/g, 'http://localhost:3003');
+        url = url.replace('api.theawlacompany.com', 'localhost:3003');
+      } else if (input instanceof Request) {
+        const newUrl = input.url.replace(/https?:\/\/api\.theawlacompany\.com/g, 'http://localhost:3003');
+        url = new Request(newUrl, input);
+      }
+
+      console.log('API Request:', typeof url === 'string' ? url : url.url);
+      return originalFetch.call(this, url, init);
+    };
+
+    // Override XMLHttpRequest for Axios compatibility
+    const originalXHROpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url, ...args) {
+      if (typeof url === 'string') {
+        url = url.replace(/https?:\/\/api\.theawlacompany\.com/g, 'http://localhost:3003');
+        url = url.replace('api.theawlacompany.com', 'localhost:3003');
+        console.log('XHR Request:', url);
+      }
+      return originalXHROpen.call(this, method, url, ...args);
+    };
+
+    // Override axios if it's used
+    window.addEventListener('DOMContentLoaded', function() {
+      if (window.axios) {
+        window.axios.defaults.baseURL = 'http://localhost:3003/api';
+        console.log('Axios baseURL set to localhost:3003');
+      }
+    });
+  </script>
+
+  <script type="module" crossorigin src="/assets/index-BPJlMmjo.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-DHStuFDn.css">
+</head>
+
+<body>
+    <div id="root"></div>
+
+</body>
+
+</html>
