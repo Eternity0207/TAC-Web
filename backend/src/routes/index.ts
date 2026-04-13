@@ -46,18 +46,6 @@ const profilePhotoUpload = multer({
 // =============================================
 // Health Check
 // =============================================
-router.get("/", (_req: Request, res: Response) => {
-  res.json({
-    success: true,
-    name: "Unified Order Management System API",
-    version: "1.0.0",
-    endpoints: {
-      health: "/api/health",
-      base: "/api"
-    }
-  });
-});
-
 router.get("/health", (req: Request, res: Response) => {
   res.json({
     success: true,
@@ -337,7 +325,13 @@ router.get("/staff/performance", authMiddleware, authorize(UserRole.ADMIN, UserR
 // =============================================
 // Catch-all for undefined routes
 // =============================================
-router.use((req: Request, res: Response) => {
+router.use((req: Request, res: Response, next) => {
+  // Let app-level /api SPA fallback handle browser GET routes.
+  const acceptsHtml = (req.headers.accept || "").includes("text/html");
+  if (req.method === "GET" && acceptsHtml) {
+    return next();
+  }
+
   res.status(404).json({
     success: false,
     message: "API endpoint not found",

@@ -3,6 +3,7 @@ import cors from 'cors';
 import morgan from 'morgan';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 import { config } from './config';
 import routes from './routes';
 
@@ -95,6 +96,21 @@ app.use('/uploads', express.static('uploads'));
 // API Routes
 // =============================================
 app.use('/api', routes);
+
+// =============================================
+// Backend Dashboard UI under /api
+// =============================================
+const dashboardPublicDir = path.join(__dirname, '../public');
+app.use('/api', express.static(dashboardPublicDir));
+
+app.get('/api', (_req: Request, res: Response) => {
+  res.sendFile(path.join(dashboardPublicDir, 'index.html'));
+});
+
+// Keep API routes working while returning dashboard SPA for unknown /api/* paths.
+app.get(/^\/api\/(?!health$|orders(?:\/|$)|staff(?:\/|$)|reviews(?:\/|$)|coupons(?:\/|$)|products(?:\/|$)|enquiry(?:\/|$)|auth(?:\/|$)|webhooks(?:\/|$)|users(?:\/|$)|profile(?:\/|$)|dashboard(?:\/|$)|analytics(?:\/|$)|bulk-orders(?:\/|$)|bulk-customers(?:\/|$)|sales(?:\/|$)|inventory(?:\/|$)|config(?:\/|$)|skus(?:\/|$)|careers(?:\/|$)|applications(?:\/|$)|interns(?:\/|$)|credentials(?:\/|$)|tags(?:\/|$)|social-media(?:\/|$)|launches(?:\/|$)|unit-economics(?:\/|$)|team(?:\/|$)|monthly-targets(?:\/|$)|bulk-enquiries(?:\/|$)|video-reviews(?:\/|$)|whatsapp-reviews(?:\/|$)).*/, (_req: Request, res: Response) => {
+  res.sendFile(path.join(dashboardPublicDir, 'index.html'));
+});
 
 // =============================================
 // Global Error Handling
