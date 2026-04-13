@@ -108,6 +108,11 @@ app.use('/api', routes);
 // =============================================
 const dashboardPublicDir = path.join(__dirname, '../public');
 
+// Serve /api as dashboard (prevent redirect to /api/)
+app.get('/api', (_req: Request, res: Response) => {
+  res.sendFile(path.join(dashboardPublicDir, 'index.html'));
+});
+
 // Serve static files (CSS, JS, images, etc.)
 app.use('/api', express.static(dashboardPublicDir));
 
