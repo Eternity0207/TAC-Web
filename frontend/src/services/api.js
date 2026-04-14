@@ -1,8 +1,38 @@
 import axios from 'axios';
 
+function isIpOrLocalhost(hostname) {
+  if (!hostname) return false;
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true;
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname)) return true;
+  if (hostname.includes(':')) return true;
+  return false;
+}
+
+function normalizeBase(url) {
+  if (!url) return '';
+  return String(url).replace(/\/+$/, '');
+}
+
+function resolveApiBaseUrl() {
+  const configuredApiUrl = normalizeBase(import.meta.env.VITE_API_URL);
+
+  if (typeof window === 'undefined') {
+    return configuredApiUrl || 'http://api.localhost';
+  }
+
+  const { hostname, origin } = window.location;
+
+  // Local/IP testing: use same-origin reverse-proxy path instead of api.<domain>
+  if (isIpOrLocalhost(hostname)) {
+    return `${origin}/backend`;
+  }
+
+  return configuredApiUrl || `${origin}/backend`;
+}
+
 // Create axios instance
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://api.localhost',
+  baseURL: resolveApiBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
