@@ -77,6 +77,11 @@ const Team = () => {
     return String(a?.name || '').localeCompare(String(b?.name || ''));
   });
 
+  // Intern profiles are temporarily hidden on the Team page.
+  const visibleStaff = sortedStaff.filter(
+    (member) => String(member?.role || '').toUpperCase() !== 'INTERN'
+  );
+
   return (
     <>
       <Helmet>
@@ -101,13 +106,13 @@ const Team = () => {
             </div>
           )}
 
-          {staff.length === 0 && !error ? (
+          {visibleStaff.length === 0 && !error ? (
             <div className="text-center">
               <p className="text-gray-600 text-lg">No team members found.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {sortedStaff.map((member) => (
+              {visibleStaff.map((member) => (
                 <div
                   key={member.id}
                   className="bg-white rounded-2xl shadow-lg p-8 text-center hover:shadow-xl transition-shadow duration-300"
