@@ -13,21 +13,27 @@ function normalizeBase(url) {
   return String(url).replace(/\/+$/, '');
 }
 
+function ensureApiNamespace(url) {
+  if (!url) return '';
+  if (url.endsWith('/api')) return url;
+  return `${url}/api`;
+}
+
 function resolveApiBaseUrl() {
-  const configuredApiUrl = normalizeBase(import.meta.env.VITE_API_URL);
+  const configuredApiUrl = ensureApiNamespace(normalizeBase(import.meta.env.VITE_API_URL));
 
   if (typeof window === 'undefined') {
-    return configuredApiUrl || 'http://api.localhost';
+    return configuredApiUrl || 'http://api.localhost/api';
   }
 
   const { hostname, origin } = window.location;
 
   // Local/IP testing: use same-origin reverse-proxy path instead of api.<domain>
   if (isIpOrLocalhost(hostname)) {
-    return `${origin}/backend`;
+    return `${origin}/backend/api`;
   }
 
-  return configuredApiUrl || `${origin}/backend`;
+  return configuredApiUrl || `${origin}/backend/api`;
 }
 
 // Create axios instance

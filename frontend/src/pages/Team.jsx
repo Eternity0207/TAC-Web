@@ -43,9 +43,19 @@ const Team = () => {
 
         <div className="section-padding">
           <div className="container-custom">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              <p className="mt-4 text-gray-600">Loading team members...</p>
+            <div className="text-center max-w-3xl mx-auto mb-14">
+              <h1 className="heading-primary mb-4">Our Team</h1>
+              <p className="text-gray-600">Loading team members...</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {Array.from({ length: 6 }).map((_, idx) => (
+                <div key={idx} className="animate-pulse bg-white rounded-2xl shadow-lg p-8 text-center">
+                  <div className="w-36 h-36 rounded-full bg-gray-200 mx-auto mb-6" />
+                  <div className="h-5 w-2/3 rounded bg-gray-200 mx-auto mb-3" />
+                  <div className="h-4 w-1/3 rounded bg-gray-200 mx-auto" />
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -123,6 +133,7 @@ const Team = () => {
                       <img
                         src={normalizeImageUrl(member.profileImageUrl)}
                         alt={member.name}
+                        loading="lazy"
                         className="w-full h-full object-cover object-center"
                         onError={() =>
                           setBrokenImages((prev) => ({ ...prev, [member.id]: true }))

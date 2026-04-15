@@ -1,6 +1,8 @@
 import { Helmet } from 'react-helmet-async';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { apiService } from '../services/api';
+import ProductCard, { ProductCardSkeleton } from '../components/ProductCard';
+import AnimatedSection from '../components/AnimatedSection';
 
 const Home = () => {
   // Order modal state
@@ -15,6 +17,10 @@ const Home = () => {
   const [couponError, setCouponError] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState('');
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
 
   // Order form data
   const [orderFormData, setOrderFormData] = useState({
@@ -35,32 +41,59 @@ const Home = () => {
     const primaryVariant = variants.length ? variants[0] : null;
     return {
       id: product?.id || product?.slug,
+      slug: product?.slug,
       name: product?.name || 'Product',
       price: Number(primaryVariant?.price || 0),
+      mrp: Number(primaryVariant?.mrp || primaryVariant?.price || 0),
+      variants,
       imageUrl: product?.imageUrl || '',
       description: product?.shortDescription || product?.description || '',
+      shortDescription: product?.shortDescription || product?.description || '',
       weight: primaryVariant?.weight || '',
+      avgRating: Number(product?.avgRating || 0),
+      reviewCount: Number(product?.reviewCount || 0),
       displayOrder: Number(product?.displayOrder || 999),
     };
   };
 
   useEffect(() => {
     const fetchProducts = async () => {
+      setProductsLoading(true);
+      setProductsError('');
       try {
-        const response = await apiService.products.getPublic();
-        const items = Array.isArray(response?.data?.data) ? response.data.data : [];
+        const [productResponse, reviewResponse] = await Promise.all([
+          apiService.products.getPublic(),
+          apiService.reviews.getAll(),
+        ]);
+
+        const items = Array.isArray(productResponse?.data?.data) ? productResponse.data.data : [];
+        const reviewData = Array.isArray(reviewResponse?.data?.data) ? reviewResponse.data.data : [];
         const normalized = items
           .map(normalizeProduct)
           .filter((p) => p.id && p.name)
           .sort((a, b) => a.displayOrder - b.displayOrder);
         setProducts(normalized);
+        setReviews(reviewData);
       } catch (error) {
         console.error('Failed to fetch products:', error);
+        setProductsError('Unable to load products right now.');
+      } finally {
+        setProductsLoading(false);
+        setReviewsLoading(false);
       }
     };
 
     fetchProducts();
   }, []);
+
+  const featuredProducts = useMemo(() => products.slice(0, 4), [products]);
+
+  const highlightedReviews = useMemo(() => {
+    const approved = reviews.filter((review) => Number(review?.rating || 0) > 0);
+    return approved
+      .sort((a, b) => Number(b?.rating || 0) - Number(a?.rating || 0))
+      .slice(0, 3);
+  }, [reviews]);
 
   // Handle order now click
   const handleOrderNow = (product) => {
@@ -233,7 +266,7 @@ const Home = () => {
         <div className="container-custom relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center py-20">
             {/* Hero Content */}
-            <div className="text-white space-y-6">
+            <div className="fade-in-up text-white space-y-6">
               {/* Badges */}
               <div className="flex flex-wrap gap-3 mb-6">
                 <span className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium">
@@ -270,7 +303,7 @@ const Home = () => {
                 <a href="#products" className="btn-secondary text-lg px-8">
                   Shop Now
                 </a>
-                <a href="#products" className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-primary font-semibold py-3 px-8 rounded-lg transition-all duration-300">
+                <a href="#products" className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-primary font-semibold py-3 px-8 rounded-full transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-95">
                   Explore Products
                 </a>
               </div>
@@ -293,7 +326,7 @@ const Home = () => {
             </div>
 
             {/* Hero Image */}
-            <div className="relative">
+            <div className="fade-in-up relative" style={{ animationDelay: '90ms' }}>
               <div className="relative">
                 {heroImage ? (
                   <img
@@ -315,9 +348,9 @@ const Home = () => {
       </section>
 
       {/* Products Section */}
-      <section className="section-padding bg-white" id="products">
+      <section className="section-padding bg-gray-50" id="products">
         <div className="container-custom">
-          <div className="text-center max-w-3xl mx-auto mb-16">
+          <AnimatedSection className="text-center max-w-3xl mx-auto mb-16">
             <span className="text-accent font-semibold text-sm uppercase tracking-wider">Our Products</span>
             <h2 className="heading-secondary mt-4 mb-6">
               Premium <span className="text-gradient">Awla Products</span>
@@ -326,37 +359,41 @@ const Home = () => {
               Freshly picked and processed within a day — our Amla products improve gut health,
               relieve bloating, and give you healthier mornings
             </p>
-          </div>
+          </AnimatedSection>
 
           {/* Product Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
-            {products.map((product) => (
-              <div key={product.id} className="bg-white rounded-2xl shadow-xl overflow-hidden hover:shadow-2xl transition-shadow duration-300">
-                <div className="relative overflow-hidden h-80 bg-gray-100">
-                  {product.imageUrl ? (
-                    <img
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="w-full h-full object-cover hover:scale-110 transition-transform duration-500"
-                    />
-                  ) : null}
-                </div>
-                <div className="p-6">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">{product.name}</h3>
-                  <p className="text-gray-600 mb-4">{product.description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-2xl font-bold text-primary">₹{product.price}</span>
-                    <button
-                      onClick={() => handleOrderNow(product)}
-                      className="btn-primary"
-                    >
-                      Order Now
-                    </button>
-                  </div>
-                </div>
+          <AnimatedSection delay={70} className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-6xl mx-auto">
+            {productsLoading
+              ? Array.from({ length: 4 }).map((_, idx) => <ProductCardSkeleton key={idx} />)
+              : null}
+
+            {!productsLoading
+              ? featuredProducts.map((product, index) => (
+                <ProductCard
+                  key={product.id}
+                  index={index}
+                  product={product}
+                  avgRating={product.avgRating}
+                  reviewCount={product.reviewCount}
+                  ctaLabel="Order Now"
+                  onPrimaryAction={handleOrderNow}
+                  showDetailLink
+                />
+              ))
+              : null}
+
+            {!productsLoading && !featuredProducts.length ? (
+              <div className="col-span-full rounded-2xl border border-gray-200 bg-gray-50 p-6 text-center text-gray-600">
+                No products available right now.
               </div>
-            ))}
-          </div>
+            ) : null}
+          </AnimatedSection>
+
+          {productsError ? (
+            <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-center text-red-600">
+              {productsError}
+            </div>
+          ) : null}
 
           {/* Free Delivery Badge */}
           <div className="mt-12 text-center">
@@ -368,9 +405,74 @@ const Home = () => {
         </div>
       </section>
 
+      {/* Testimonials / Review Highlights */}
+      <section className="section-padding bg-primary-50">
+        <div className="container-custom">
+          <AnimatedSection className="text-center max-w-3xl mx-auto mb-12">
+            <span className="text-accent font-semibold text-sm uppercase tracking-wider">Testimonials</span>
+            <h2 className="heading-secondary mt-4 mb-4">Loved By Health-Conscious Families</h2>
+            <p className="text-gray-600 text-lg">Real customer feedback from verified Awla buyers.</p>
+          </AnimatedSection>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {reviewsLoading
+              ? Array.from({ length: 3 }).map((_, idx) => (
+                <div key={idx} className="animate-pulse rounded-2xl border border-primary-100 bg-white p-6">
+                  <div className="h-4 w-28 rounded bg-gray-200 mb-4" />
+                  <div className="h-3 w-full rounded bg-gray-200 mb-2" />
+                  <div className="h-3 w-5/6 rounded bg-gray-200" />
+                </div>
+              ))
+              : null}
+
+            {!reviewsLoading && highlightedReviews.length
+              ? highlightedReviews.map((review, index) => (
+                <article key={review.id} className="card-lift fade-in-up rounded-2xl border border-primary-100 bg-white p-6 shadow-sm" style={{ animationDelay: `${index * 60}ms` }}>
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="font-semibold text-gray-900">{review.customerName || 'Verified Buyer'}</p>
+                    <span className="text-amber-400">{'★'.repeat(Math.max(1, Math.min(5, Number(review.rating || 0))))}</span>
+                  </div>
+                  <p className="text-sm leading-relaxed text-gray-600">{review.reviewText || 'Great quality and taste.'}</p>
+                </article>
+              ))
+              : null}
+
+            {!reviewsLoading && !highlightedReviews.length ? (
+              <div className="col-span-full rounded-2xl border border-gray-200 bg-white p-6 text-center text-gray-600">
+                No reviews yet.
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
+      {/* Trust Badges */}
+      <section className="py-14 bg-white">
+        <div className="container-custom">
+          <AnimatedSection className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" delay={60}>
+            <div className="card-lift rounded-xl border border-primary-100 bg-primary-50 p-4 text-center">
+              <i className="fas fa-leaf text-xl mb-1 text-primary" aria-hidden="true"></i>
+              <p className="font-semibold text-gray-900">100% Natural</p>
+            </div>
+            <div className="card-lift rounded-xl border border-primary-100 bg-primary-50 p-4 text-center">
+              <i className="fas fa-flask text-xl mb-1 text-primary" aria-hidden="true"></i>
+              <p className="font-semibold text-gray-900">No Artificial Additives</p>
+            </div>
+            <div className="card-lift rounded-xl border border-primary-100 bg-primary-50 p-4 text-center">
+              <i className="fas fa-box-open text-xl mb-1 text-primary" aria-hidden="true"></i>
+              <p className="font-semibold text-gray-900">Farm to Pack Freshness</p>
+            </div>
+            <div className="card-lift rounded-xl border border-primary-100 bg-primary-50 p-4 text-center">
+              <i className="fas fa-shield-alt text-xl mb-1 text-primary" aria-hidden="true"></i>
+              <p className="font-semibold text-gray-900">Ayurvedic Wellness Focus</p>
+            </div>
+          </AnimatedSection>
+        </div>
+      </section>
+
       {/* Bulk Enquiry CTA */}
       <section className="section-padding bg-gradient-to-br from-primary-50 to-accent-50">
-        <div className="container-custom text-center">
+        <AnimatedSection className="container-custom text-center" delay={40}>
           <span className="text-accent font-semibold text-sm uppercase tracking-wider">B2B & Wholesale</span>
           <h2 className="heading-secondary mt-4 mb-6">
             Looking for <span className="text-gradient">Bulk Orders</span>?
@@ -381,17 +483,17 @@ const Home = () => {
           <a href="/bulk-enquiry" className="btn-primary text-lg px-12">
             Send Bulk Enquiry
           </a>
-        </div>
+        </AnimatedSection>
       </section>
 
       {/* Benefits Section */}
-      <section className="section-padding bg-white">
+      <section className="section-padding bg-gray-50">
         <div className="container-custom">
-          <div className="text-center max-w-3xl mx-auto mb-16">
+          <AnimatedSection className="text-center max-w-3xl mx-auto mb-16">
             <h2 className="heading-secondary mb-6">
               Why Choose <span className="text-gradient">The Awla Company</span>?
             </h2>
-          </div>
+          </AnimatedSection>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center p-8 rounded-2xl bg-gradient-to-br from-primary-50 to-white hover:shadow-xl transition-shadow">

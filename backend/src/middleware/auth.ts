@@ -8,15 +8,38 @@ export interface AuthRequest extends Request {
     userId?: string;
 }
 
-export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
-    const authHeader = req.headers.authorization;
+function parseCookies(cookieHeader?: string): Record<string, string> {
+    if (!cookieHeader) return {};
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return cookieHeader.split(';').reduce((acc, part) => {
+        const [rawKey, ...rawValue] = part.trim().split('=');
+        if (!rawKey) return acc;
+
+        acc[decodeURIComponent(rawKey)] = decodeURIComponent(rawValue.join('='));
+        return acc;
+    }, {} as Record<string, string>);
+}
+
+export function extractTokenFromRequest(req: Request): string | null {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        return authHeader.split(' ')[1];
+    }
+
+    const cookies = parseCookies(req.headers.cookie);
+    if (cookies.token) {
+        return cookies.token;
+    }
+
+    return null;
+}
+
+export function authMiddleware(req: AuthRequest, res: Response, next: NextFunction): void {
+    const token = extractTokenFromRequest(req);
+    if (!token) {
         res.status(401).json({ success: false, message: 'Authorization required' });
         return;
     }
-
-    const token = authHeader.split(' ')[1];
 
     try {
         const decoded = jwt.verify(token, config.jwtSecret) as {

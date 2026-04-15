@@ -1,11 +1,22 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 10);
+    };
+
+    handleScroll();
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
@@ -40,8 +51,13 @@ const Navbar = () => {
     { name: 'Bulk Enquiry', path: '/bulk-enquiry' },
   ];
 
+  const useGlassStyle = location.pathname === '/' && !isScrolled;
+  const headerClass = useGlassStyle
+    ? 'bg-white/70 backdrop-blur-md shadow-sm'
+    : 'bg-white/95 backdrop-blur-lg shadow-md';
+
   return (
-    <header className="fixed top-0 left-0 w-full bg-white shadow-md z-50">
+    <header className={`fixed top-0 left-0 w-full z-50 transition-all duration-200 ease-in-out ${headerClass}`}>
       <nav className="container-custom">
         <div className="flex items-center justify-between py-4">
           {/* Logo */}
@@ -64,8 +80,8 @@ const Navbar = () => {
                   to={link.path}
                   className={`font-medium transition-colors duration-300 ${
                     isActive(link.path)
-                      ? 'text-primary'
-                      : 'text-gray-700 hover:text-primary'
+                      ? 'nav-link text-primary'
+                      : 'nav-link text-gray-700 hover:text-primary'
                   }`}
                 >
                   {link.name}
