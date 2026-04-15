@@ -62,7 +62,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions));
+app.options('/{*corsPath}', cors(corsOptions));
 
 // Backward compatibility: legacy API requests are internally rewritten to /api/*.
 app.use((req, _res, next) => {
