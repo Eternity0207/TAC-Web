@@ -1,44 +1,10 @@
 import axios from 'axios';
-
-function isIpOrLocalhost(hostname) {
-  if (!hostname) return false;
-  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') return true;
-  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname)) return true;
-  if (hostname.includes(':')) return true;
-  return false;
-}
-
-function normalizeBase(url) {
-  if (!url) return '';
-  return String(url).replace(/\/+$/, '');
-}
-
-function ensureApiNamespace(url) {
-  if (!url) return '';
-  if (url.endsWith('/api')) return url;
-  return `${url}/api`;
-}
-
-function resolveApiBaseUrl() {
-  const configuredApiUrl = ensureApiNamespace(normalizeBase(import.meta.env.VITE_API_URL));
-
-  if (typeof window === 'undefined') {
-    return configuredApiUrl || 'http://api.localhost/api';
-  }
-
-  const { hostname, origin } = window.location;
-
-  // Local/IP testing: use same-origin reverse-proxy path instead of api.<domain>
-  if (isIpOrLocalhost(hostname)) {
-    return `${origin}/backend/api`;
-  }
-
-  return configuredApiUrl || `${origin}/backend/api`;
-}
+import API_BASE from '../lib/api';
 
 // Create axios instance
 const API = axios.create({
-  baseURL: resolveApiBaseUrl(),
+  baseURL: API_BASE,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
