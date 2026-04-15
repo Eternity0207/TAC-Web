@@ -472,7 +472,17 @@ export async function getStaffList(req: any, res: Response): Promise<void> {
         role: u.role,
       }));
 
-    res.json({ success: true, data: staffList });
+    // Keep both shapes for backward compatibility:
+    // - data.staff for legacy admin bundle
+    // - root-level staff for clients that read response.data.staff
+    res.json({
+      success: true,
+      data: {
+        staff: staffList,
+        items: staffList,
+      },
+      staff: staffList,
+    });
   } catch (error) {
     console.error("Get staff list error:", error);
     res.status(500).json({ success: false, message: "Server error" });

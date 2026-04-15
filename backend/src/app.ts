@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import jwt from 'jsonwebtoken';
+import cors from 'cors';
 import apiRoutes from './routes';
 import { config } from './config';
 import { extractTokenFromRequest } from './middleware/auth';
@@ -8,6 +9,23 @@ import { extractTokenFromRequest } from './middleware/auth';
 const app = express();
 const dashboardPublicDir = path.join(__dirname, '../public');
 const dashboardIndexFile = path.join(dashboardPublicDir, 'index.html');
+const allowedOrigins = new Set(config.corsOrigins);
+
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow server-to-server calls and curl requests without Origin.
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
 
 function hasValidAuthToken(req: express.Request): boolean {
   const token = extractTokenFromRequest(req);
@@ -42,6 +60,9 @@ function looksLikeLegacyApiRequest(req: express.Request): boolean {
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // Backward compatibility: legacy API requests are internally rewritten to /api/*.
 app.use((req, _res, next) => {

@@ -20,7 +20,11 @@ const Team = () => {
       try {
         const response = await apiService.staff.getAll();
         if (response.data.success) {
-          setStaff(response.data.data);
+          const payload = response?.data?.data;
+          const staffList = Array.isArray(payload)
+            ? payload
+            : payload?.staff || response?.data?.staff || [];
+          setStaff(staffList);
         }
       } catch (error) {
         console.error('Failed to fetch staff:', error);
