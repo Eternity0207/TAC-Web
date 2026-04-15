@@ -7,18 +7,40 @@ import { config } from './config';
 const app = express();
 const dashboardPublicDir = path.join(__dirname, '../public');
 const dashboardIndexFile = path.join(dashboardPublicDir, 'index.html');
-const allowedOrigins = new Set(config.corsOrigins);
+
+function normalizeOrigin(value: string): string {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return value.trim().replace(/\/+$/, '');
+  }
+}
+
+const allowedOrigins = new Set(
+  [
+    ...config.corsOrigins,
+    config.frontendUrl,
+    config.adminUrl,
+    config.backendUrl,
+  ]
+    .map((origin) => normalizeOrigin(origin))
+    .filter(Boolean),
+);
+
+const firstPartyOriginPattern = /^https:\/\/([a-z0-9-]+\.)?theawlacompany\.com$/i;
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
     // Allow server-to-server calls and curl requests without Origin.
     if (!origin) return callback(null, true);
 
-    if (allowedOrigins.has(origin)) {
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (allowedOrigins.has(normalizedOrigin) || firstPartyOriginPattern.test(normalizedOrigin)) {
       return callback(null, true);
     }
 
-    return callback(new Error(`CORS blocked for origin: ${origin}`));
+    // Deny CORS without throwing 500 for asset and API requests.
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
