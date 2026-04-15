@@ -47,11 +47,34 @@ const corsOptions: cors.CorsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
+function looksLikeLegacyApiRequest(req: express.Request): boolean {
+  if (req.path.startsWith('/api')) return false;
+
+  // Keep static assets and file requests on UI/static handlers.
+  if (req.path.startsWith('/assets/') || path.extname(req.path)) return false;
+
+  const hasAuthHeader = Boolean(req.headers.authorization);
+  const acceptsJson = String(req.headers.accept || '').includes('application/json');
+  const hasJsonContentType = String(req.headers['content-type'] || '').includes('application/json');
+  const isXHR = String(req.headers['x-requested-with'] || '').toLowerCase() === 'xmlhttprequest';
+
+  if (req.method !== 'GET') return true;
+  return hasAuthHeader || acceptsJson || hasJsonContentType || isXHR;
+}
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cors(corsOptions));
 app.options('/{*corsPath}', cors(corsOptions));
+
+// Backward compatibility for admin dashboard bundles that still call root API paths.
+app.use((req, _res, next) => {
+  if (looksLikeLegacyApiRequest(req)) {
+    req.url = `/api${req.url}`;
+  }
+  next();
+});
 
 app.use('/api', apiRoutes);
 app.use('/api', (_req, res) => {
