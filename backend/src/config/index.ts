@@ -3,6 +3,17 @@ import path from 'path';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
+function parseBooleanEnv(value: string | undefined): boolean | undefined {
+    if (value == null || value.trim() === '') return undefined;
+    const normalized = value.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(normalized)) return true;
+    if (['0', 'false', 'no', 'off'].includes(normalized)) return false;
+    return undefined;
+}
+
+const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
+const smtpSecure = parseBooleanEnv(process.env.SMTP_SECURE) ?? smtpPort === 465;
+
 export const config = {
     port: parseInt(process.env.PORT || '3003', 10),
     nodeEnv: process.env.NODE_ENV || 'development',
@@ -29,7 +40,8 @@ export const config = {
 
     email: {
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587', 10),
+        port: smtpPort,
+        secure: smtpSecure,
         user: process.env.SMTP_USER || '',
         pass: process.env.SMTP_PASS || '',
         from: process.env.EMAIL_FROM || 'orders@theawlacompany.com',

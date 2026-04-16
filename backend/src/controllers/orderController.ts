@@ -7,7 +7,13 @@ import shippingLabelGenerator from "../services/shippingLabelGenerator";
 import payuPayment from "../services/payuPayment";
 import { config } from "../config";
 import { AuthRequest } from "../middleware/auth";
-import { OrderStatus, PaymentStatus, PaymentMode, Order } from "../types";
+import {
+  OrderStatus,
+  PaymentStatus,
+  PaymentMode,
+  Order,
+  OrderType,
+} from "../types";
 
 export async function createOrder(req: Request, res: Response): Promise<void> {
   try {
@@ -71,6 +77,8 @@ export async function createOrder(req: Request, res: Response): Promise<void> {
 
     const totalAmount = Math.max(0, subtotal + shippingAmount - couponDiscount);
 
+    const nowIso = new Date().toISOString();
+
     const order = await googleSheets.createOrder({
       customerName,
       customerEmail,
@@ -91,7 +99,12 @@ export async function createOrder(req: Request, res: Response): Promise<void> {
       discountType: couponDiscount > 0 ? couponDiscountType : null,
       totalAmount,
       paymentMode: paymentMode || PaymentMode.UPI_QR,
+      orderStatus: OrderStatus.PENDING,
+      paymentStatus: PaymentStatus.PENDING,
+      orderType: OrderType.REGULAR,
       customerNotes,
+      createdAt: nowIso,
+      updatedAt: nowIso,
     });
 
     if (couponCode && couponDiscount > 0) {
@@ -206,6 +219,8 @@ export async function createOrderFromLanding(
     // Determine payment mode (default: UPI_QR, also supports PAYU)
     const paymentMode = requestedPaymentMode === 'PAYU' ? PaymentMode.PAYU : PaymentMode.UPI_QR;
 
+    const nowIso = new Date().toISOString();
+
     const order = await googleSheets.createOrder({
       customerName: name,
       customerEmail: email,
@@ -226,8 +241,13 @@ export async function createOrderFromLanding(
       discountType: discountType || null,
       totalAmount,
       paymentMode,
+      orderStatus: OrderStatus.PENDING,
+      paymentStatus: PaymentStatus.PENDING,
+      orderType: OrderType.REGULAR,
       customerNotes: message || "",
       referredBy: referredBy || "",
+      createdAt: nowIso,
+      updatedAt: nowIso,
     });
 
     // Apply coupon usage if coupon was used
@@ -285,10 +305,14 @@ export async function createOrderFromLanding(
     }
 
     // Try to send confirmation email (for UPI orders)
+    let emailSent = true;
+    let emailWarning: string | null = null;
     if (paymentMode !== PaymentMode.PAYU) {
       try {
         await emailService.sendOrderConfirmation(order, qrCode || '');
       } catch (e) {
+        emailSent = false;
+        emailWarning = "Order placed successfully, but confirmation email could not be sent right now.";
         console.error("Email error:", e);
       }
     }
@@ -303,6 +327,8 @@ export async function createOrderFromLanding(
         totalAmount: order.totalAmount,
         qrCode,
         payuData,
+        emailSent,
+        emailWarning,
       },
     });
   } catch (error) {
@@ -356,6 +382,12 @@ export async function getAllOrders(
         );
       });
     }
+
+    orders.sort((a, b) => {
+      const aTs = new Date(a.createdAt || a.updatedAt || 0).getTime();
+      const bTs = new Date(b.createdAt || b.updatedAt || 0).getTime();
+      return bTs - aTs;
+    });
 
     const total = orders.length;
 
