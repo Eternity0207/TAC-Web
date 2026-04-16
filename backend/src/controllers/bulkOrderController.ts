@@ -1197,8 +1197,10 @@ export async function createBulkEnquiry(
       contactPerson: rawContactPerson,
       email: rawEmail,
       phone,
-      productInterest: rawProductInterest || "",
-      estimatedQuantity: rawEstimatedQuantity || "",
+      // Existing admin table still renders Product/Qty columns.
+      // Map message into Product so website enquiries are readable there.
+      productInterest: rawProductInterest || rawMessage,
+      estimatedQuantity: rawEstimatedQuantity || "N/A",
       message: rawMessage,
       status: "NEW",
       source: "website",
@@ -1265,8 +1267,9 @@ export async function getBulkEnquiries(req: AuthRequest, res: Response): Promise
           contactPerson,
           email,
           phone,
-          productInterest: String(entry.productInterest || "").trim(),
-          estimatedQuantity: String(entry.estimatedQuantity || "").trim(),
+          // Keep current admin table useful even before UI column changes.
+          productInterest: String(entry.productInterest || message).trim(),
+          estimatedQuantity: String(entry.estimatedQuantity || "N/A").trim(),
           message,
           status,
           source: "website",
@@ -1306,7 +1309,7 @@ export async function updateBulkEnquiryStatus(
     }
 
     const { id } = req.params;
-    const status = String(req.body?.status || "")
+    const requestedStatus = String(req.body?.status || "")
       .trim()
       .toUpperCase();
     const notes = String(req.body?.notes || "").trim();
@@ -1318,12 +1321,21 @@ export async function updateBulkEnquiryStatus(
       "CLOSED",
     ]);
 
+    // Be tolerant for older admin bundles that may send partial payloads.
+    let status = requestedStatus;
     if (!status || !allowedStatuses.has(status)) {
-      res.status(400).json({
-        success: false,
-        message: "Valid status is required",
-      });
-      return;
+      const all = await googleSheets.getAllBulkEnquiries();
+      const current = (all || []).find(
+        (entry: any) => String(entry?.id || "") === String(id),
+      );
+
+      if (!current) {
+        res.status(404).json({ success: false, message: "Enquiry not found" });
+        return;
+      }
+
+      status = String(current.status || "NEW").trim().toUpperCase();
+      if (!allowedStatuses.has(status)) status = "NEW";
     }
 
     const enquiry = await googleSheets.updateBulkEnquiry(id, {
