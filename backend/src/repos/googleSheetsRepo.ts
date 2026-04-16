@@ -15,9 +15,9 @@ type TableConfig = {
 };
 
 const tables: Record<string, TableConfig> = {
-  orders: { table: "orders", getId: (r) => r.id || r.orderNumber || randomUUID() },
+  orders: { table: "orders", getId: (r) => r.id || randomUUID() },
   adminUsers: { table: "admin_users", getId: (r) => r.id || r.email || randomUUID() },
-  bulkOrders: { table: "bulk_orders", getId: (r) => r.id || r.orderNumber || randomUUID() },
+  bulkOrders: { table: "bulk_orders", getId: (r) => r.id || randomUUID() },
   bulkCustomers: { table: "bulk_customers", getId: (r) => r.id || r.customerPhone || randomUUID() },
   coupons: { table: "discount_coupons", getId: (r) => r.id || r.couponCode || randomUUID() },
   wholesaleSkus: { table: "wholesale_skus", getId: (r) => r.skuId || r.id || randomUUID() },
@@ -40,10 +40,54 @@ const tables: Record<string, TableConfig> = {
   configs: { table: "config_kv", getId: (r) => r.configType || randomUUID() },
 };
 
+function normalizeRow(row: any) {
+  const data = row?.data && typeof row.data === "object" ? row.data : {};
+  const updatedAt = String(data.updatedAt || row?.updated_at || "").trim();
+  const createdAt = String(data.createdAt || row?.created_at || updatedAt || "").trim();
+
+  return {
+    ...data,
+    id: data.id || row?.id || "",
+    createdAt: createdAt || new Date().toISOString(),
+    updatedAt: updatedAt || createdAt || new Date().toISOString(),
+  };
+}
+
+function parseDate(value: string | undefined) {
+  if (!value) return new Date();
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return new Date();
+  return date;
+}
+
+async function generateYearlySequenceNumber(
+  name: "orders" | "bulkOrders",
+  prefix: "ORD" | "BLK",
+  createdAt?: string,
+) {
+  const t = tables[name];
+  const rows = await selectRows(t.table);
+  const date = parseDate(createdAt);
+  const year = date.getUTCFullYear();
+  const regex = new RegExp(`^${prefix}${year}(\\d{5})$`);
+  let max = 0;
+
+  for (const row of rows) {
+    const data = row?.data || {};
+    const num = String(data.orderNumber || "").trim().toUpperCase();
+    const match = regex.exec(num);
+    if (!match) continue;
+    const parsed = Number.parseInt(match[1], 10);
+    if (!Number.isNaN(parsed) && parsed > max) max = parsed;
+  }
+
+  return `${prefix}${year}${String(max + 1).padStart(5, "0")}`;
+}
+
 async function all(name: keyof typeof tables) {
   const t = tables[name];
   const rows = await selectRows(t.table);
-  return rows.map((r: any) => r.data);
+  return rows.map((r: any) => normalizeRow(r));
 }
 
 async function upsert(name: keyof typeof tables, rows: any[]) {
@@ -56,21 +100,57 @@ async function upsert(name: keyof typeof tables, rows: any[]) {
 
 async function create(name: keyof typeof tables, row: any) {
   const t = tables[name];
-  const payload = { id: t.getId(row), data: row, updated_at: new Date().toISOString() };
+  const nowIso = new Date().toISOString();
+  const id = t.getId(row || {});
+  const data = row && typeof row === "object" ? { ...row } : {};
+
+  data.id = data.id || id;
+  data.createdAt = data.createdAt || nowIso;
+  data.updatedAt = data.updatedAt || nowIso;
+
+  if (name === "orders" && !String(data.orderNumber || "").trim()) {
+    data.orderNumber = await generateYearlySequenceNumber(
+      "orders",
+      "ORD",
+      data.createdAt,
+    );
+  }
+
+  if (name === "bulkOrders" && !String(data.orderNumber || "").trim()) {
+    data.orderNumber = await generateYearlySequenceNumber(
+      "bulkOrders",
+      "BLK",
+      data.createdAt,
+    );
+  }
+
+  const payload = { id, data, updated_at: nowIso };
   const created = await insertRow(t.table, payload);
-  return created?.data || row;
+  return normalizeRow(created || payload);
 }
 
 async function updateById(name: keyof typeof tables, id: string, updates: any) {
   const t = tables[name];
   const rows = await selectRows(t.table, { id });
   if (!rows.length) return null;
-  const merged = { ...(rows[0].data || {}), ...updates };
+  const existing = normalizeRow(rows[0]);
+  const merged = {
+    ...existing,
+    ...(updates || {}),
+    id: existing.id || id,
+    updatedAt: new Date().toISOString(),
+  };
   const out = await updateRows(t.table, { data: merged, updated_at: new Date().toISOString() }, { id });
-  return out[0]?.data || merged;
+  return normalizeRow(out[0] || { id, data: merged });
 }
 
 async function findBy(name: keyof typeof tables, key: string, value: string) {
+  if (key === "id") {
+    const t = tables[name];
+    const rows = await selectRows(t.table, { id: value });
+    if (rows.length) return normalizeRow(rows[0]);
+    return null;
+  }
   const data = await all(name);
   return data.find((r: any) => String(r?.[key]) === String(value)) || null;
 }

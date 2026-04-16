@@ -15,6 +15,16 @@ import {
   OrderType,
 } from "../types";
 
+function getOrderTimestamp(order: Partial<Order> & { updatedAt?: string }) {
+  const createdTs = new Date(order.createdAt || "").getTime();
+  if (!Number.isNaN(createdTs) && createdTs > 0) return createdTs;
+
+  const updatedTs = new Date(order.updatedAt || "").getTime();
+  if (!Number.isNaN(updatedTs) && updatedTs > 0) return updatedTs;
+
+  return 0;
+}
+
 export async function createOrder(req: Request, res: Response): Promise<void> {
   try {
     const {
@@ -23,6 +33,7 @@ export async function createOrder(req: Request, res: Response): Promise<void> {
       customerPhone,
       addressLine1,
       addressLine2,
+      address,
       city,
       state,
       pincode,
@@ -37,7 +48,7 @@ export async function createOrder(req: Request, res: Response): Promise<void> {
       !customerName ||
       !customerEmail ||
       !customerPhone ||
-      !addressLine1 ||
+      !(addressLine1 || address) ||
       !city ||
       !state ||
       !pincode
@@ -78,13 +89,15 @@ export async function createOrder(req: Request, res: Response): Promise<void> {
     const totalAmount = Math.max(0, subtotal + shippingAmount - couponDiscount);
 
     const nowIso = new Date().toISOString();
+    const normalizedAddressLine1 = String(addressLine1 || address || "").trim();
+    const normalizedAddressLine2 = String(addressLine2 || "").trim();
 
     const order = await googleSheets.createOrder({
       customerName,
       customerEmail,
       customerPhone,
-      addressLine1,
-      addressLine2,
+      addressLine1: normalizedAddressLine1,
+      addressLine2: normalizedAddressLine2,
       city,
       state,
       pincode,
@@ -117,6 +130,8 @@ export async function createOrder(req: Request, res: Response): Promise<void> {
 
     let qrCode = null;
     let payuData = null;
+    let emailSent: boolean | null = null;
+    let emailWarning: string | null = null;
 
     if (order.paymentMode === PaymentMode.UPI_QR) {
       qrCode = await qrGenerator.generateQRCodeBase64({
@@ -125,7 +140,11 @@ export async function createOrder(req: Request, res: Response): Promise<void> {
       });
       try {
         await emailService.sendOrderConfirmation(order, qrCode);
+        emailSent = true;
       } catch (e) {
+        emailSent = false;
+        emailWarning =
+          "Order placed successfully, but confirmation email could not be sent right now.";
         console.error("Email error:", e);
       }
     } else if (
@@ -160,6 +179,8 @@ export async function createOrder(req: Request, res: Response): Promise<void> {
         },
         qrCode,
         payuData,
+        emailSent,
+        emailWarning,
       },
     });
   } catch (error) {
@@ -180,6 +201,8 @@ export async function createOrderFromLanding(
       phone,
       products,
       address,
+      addressLine1,
+      addressLine2,
       city,
       pincode,
       state,
@@ -192,7 +215,10 @@ export async function createOrderFromLanding(
       paymentMode: requestedPaymentMode,
     } = req.body;
 
-    if (!name || !email || !phone || !address || !state || !pincode) {
+    const normalizedAddressLine1 = String(addressLine1 || address || "").trim();
+    const normalizedAddressLine2 = String(addressLine2 || "").trim();
+
+    if (!name || !email || !phone || !normalizedAddressLine1 || !state || !pincode) {
       res
         .status(400)
         .json({ success: false, message: "Missing required fields" });
@@ -225,8 +251,8 @@ export async function createOrderFromLanding(
       customerName: name,
       customerEmail: email,
       customerPhone: phone,
-      addressLine1: address,
-      addressLine2: "",
+      addressLine1: normalizedAddressLine1,
+      addressLine2: normalizedAddressLine2,
       city: city || "",
       state,
       pincode,
@@ -291,7 +317,10 @@ export async function createOrderFromLanding(
         email,
         phone,
         products: parsedProducts,
-        address,
+        address:
+          [normalizedAddressLine1, normalizedAddressLine2]
+            .filter(Boolean)
+            .join(", "),
         city,
         pincode,
         state,
@@ -305,11 +334,12 @@ export async function createOrderFromLanding(
     }
 
     // Try to send confirmation email (for UPI orders)
-    let emailSent = true;
+    let emailSent: boolean | null = null;
     let emailWarning: string | null = null;
     if (paymentMode !== PaymentMode.PAYU) {
       try {
         await emailService.sendOrderConfirmation(order, qrCode || '');
+        emailSent = true;
       } catch (e) {
         emailSent = false;
         emailWarning = "Order placed successfully, but confirmation email could not be sent right now.";
@@ -383,11 +413,7 @@ export async function getAllOrders(
       });
     }
 
-    orders.sort((a, b) => {
-      const aTs = new Date(a.createdAt || a.updatedAt || 0).getTime();
-      const bTs = new Date(b.createdAt || b.updatedAt || 0).getTime();
-      return bTs - aTs;
-    });
+    orders.sort((a, b) => getOrderTimestamp(b) - getOrderTimestamp(a));
 
     const total = orders.length;
 
@@ -1119,6 +1145,8 @@ export async function searchOrders(
         (o.orderNumber || "").toLowerCase().includes(searchStr),
     );
 
+    matches.sort((a, b) => getOrderTimestamp(b) - getOrderTimestamp(a));
+
     res.json({ success: true, data: { orders: matches } });
   } catch (error) {
     console.error("Search orders error:", error);
@@ -1135,6 +1163,7 @@ export async function getDeliveryReceipts(
 ): Promise<void> {
   try {
     const allOrders = await googleSheets.getAllOrders();
+    allOrders.sort((a, b) => getOrderTimestamp(b) - getOrderTimestamp(a));
     // Return all orders - any order can have a delivery receipt uploaded
     res.json({
       success: true,
