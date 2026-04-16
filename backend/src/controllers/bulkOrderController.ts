@@ -1231,9 +1231,60 @@ export async function getBulkEnquiries(req: AuthRequest, res: Response): Promise
   try {
     const enquiries = await googleSheets.getAllBulkEnquiries();
 
+    const normalized = (enquiries || [])
+      .map((entry: any) => {
+        if (!entry || typeof entry !== "object") return null;
+
+        const source = String(entry.source || "").trim().toLowerCase();
+        const enquiryType = String(entry.enquiryType || "").trim().toLowerCase();
+        const isWebsiteEntry = source === "website" || enquiryType === "bulk";
+        if (!isWebsiteEntry) return null;
+
+        const id = String(entry.id || "").trim();
+        const contactPerson = String(entry.contactPerson || entry.name || "").trim();
+        const businessName = String(entry.businessName || entry.company || "").trim();
+        const email = String(entry.email || "").trim().toLowerCase();
+        const phone = String(entry.phone || "").replace(/\D/g, "");
+        const message = String(entry.message || "").trim();
+
+        if (!id || !contactPerson || !email || !phone || !message) return null;
+
+        const status = String(entry.status || "NEW").trim().toUpperCase() || "NEW";
+        const createdAt =
+          entry.createdAt ||
+          entry.created_at ||
+          entry.submittedAt ||
+          entry.updatedAt ||
+          entry.updated_at ||
+          null;
+
+        return {
+          ...entry,
+          id,
+          businessName,
+          contactPerson,
+          email,
+          phone,
+          productInterest: String(entry.productInterest || "").trim(),
+          estimatedQuantity: String(entry.estimatedQuantity || "").trim(),
+          message,
+          status,
+          source: "website",
+          enquiryType: "bulk",
+          createdAt,
+        };
+      })
+      .filter(Boolean) as any[];
+
+    normalized.sort((a, b) => {
+      const aTs = new Date(a.createdAt || 0).getTime();
+      const bTs = new Date(b.createdAt || 0).getTime();
+      return bTs - aTs;
+    });
+
     res.json({
       success: true,
-      data: enquiries || []
+      data: normalized,
     });
   } catch (error) {
     console.error("Get bulk enquiries error:", error);

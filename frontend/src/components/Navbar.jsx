@@ -48,7 +48,7 @@ const Navbar = () => {
     { name: 'Blog', path: '/blog' },
     { name: 'Team', path: '/team' },
     { name: 'Careers', path: '/careers' },
-    { name: 'Bulk Enquiry', path: '/bulk-enquiry', featured: true },
+    { name: 'Bulk Enquiry', path: '/bulk-enquiry' },
   ];
 
   const useGlassStyle = location.pathname === '/' && !isScrolled;
@@ -79,13 +79,9 @@ const Navbar = () => {
                 <Link
                   to={link.path}
                   className={`font-medium transition-colors duration-300 ${
-                    link.featured
-                      ? isActive(link.path)
-                        ? 'bg-primary text-white px-4 py-2 rounded-full shadow-md'
-                        : 'bg-primary-100 text-primary hover:bg-primary hover:text-white px-4 py-2 rounded-full'
-                      : isActive(link.path)
-                        ? 'nav-link text-primary'
-                        : 'nav-link text-gray-700 hover:text-primary'
+                    isActive(link.path)
+                      ? 'nav-link text-primary'
+                      : 'nav-link text-gray-700 hover:text-primary'
                   }`}
                 >
                   {link.name}
@@ -133,13 +129,9 @@ const Navbar = () => {
                   to={link.path}
                   onClick={closeMenu}
                   className={`font-medium text-lg transition-colors duration-300 ${
-                    link.featured
-                      ? isActive(link.path)
-                        ? 'inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-2 text-white'
-                        : 'inline-flex w-full items-center justify-center rounded-xl bg-primary-100 px-4 py-2 text-primary hover:bg-primary hover:text-white'
-                      : isActive(link.path)
-                        ? 'text-primary'
-                        : 'text-gray-700 hover:text-primary'
+                    isActive(link.path)
+                      ? 'text-primary'
+                      : 'text-gray-700 hover:text-primary'
                   }`}
                 >
                   {link.name}
