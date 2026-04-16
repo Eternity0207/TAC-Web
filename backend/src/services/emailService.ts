@@ -16,7 +16,16 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+function getQrBuffer(qrCodeBase64: string): Buffer {
+  const cleaned = String(qrCodeBase64 || '')
+    .trim()
+    .replace(/^data:image\/\w+;base64,/, '');
+  return Buffer.from(cleaned, 'base64');
+}
+
 export async function sendOrderConfirmation(order: Order, qrCodeBase64: string): Promise<void> {
+  const qrBuffer = getQrBuffer(qrCodeBase64);
+
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2 style="color: #4a7c23;">Order Confirmation</h2>
@@ -25,7 +34,7 @@ export async function sendOrderConfirmation(order: Order, qrCodeBase64: string):
       <h3>Order Total: ₹${order.totalAmount.toFixed(2)}</h3>
       <p>Please scan the QR code below to complete your payment:</p>
       <div style="text-align: center; margin: 20px 0;">
-        <img src="${qrCodeBase64}" alt="Payment QR Code" style="max-width: 250px;"/>
+        <img src="cid:orderpaymentqr" alt="Payment QR Code" style="max-width: 250px; width: 250px; height: 250px; object-fit: contain; border: 1px solid #e5e5e5; border-radius: 8px;"/>
       </div>
       <p>Thank you for choosing The Awla Company!</p>
     </div>
@@ -36,6 +45,12 @@ export async function sendOrderConfirmation(order: Order, qrCodeBase64: string):
     to: order.customerEmail,
     subject: `Order Confirmation - ${order.orderNumber}`,
     html,
+    attachments: [{
+      filename: `PaymentQR-${order.orderNumber}.png`,
+      content: qrBuffer,
+      contentType: 'image/png',
+      cid: 'orderpaymentqr'
+    }]
   });
 }
 
@@ -85,8 +100,7 @@ export async function sendShippingNotification(order: Order, invoicePdf: Buffer)
 }
 
 export async function sendPaymentQREmail(order: Order, qrCodeBase64: string): Promise<void> {
-  const base64Data = qrCodeBase64.replace(/^data:image\/\w+;base64,/, '');
-  const qrBuffer = Buffer.from(base64Data, 'base64');
+  const qrBuffer = getQrBuffer(qrCodeBase64);
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); padding: 30px; border-radius: 12px;">

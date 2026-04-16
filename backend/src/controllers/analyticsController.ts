@@ -4,6 +4,59 @@ import googleSheets from "../services/googleSheets";
 import { AuthRequest } from "../middleware/auth";
 import { OrderStatus, PaymentStatus, UserRole } from "../types";
 
+function parseOrderDateValue(value: unknown): number {
+  if (value == null) return Number.NaN;
+
+  if (value instanceof Date) {
+    const ts = value.getTime();
+    return Number.isFinite(ts) ? ts : Number.NaN;
+  }
+
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value <= 0) return Number.NaN;
+    return value < 1_000_000_000_000 ? value * 1000 : value;
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return Number.NaN;
+
+  if (/^\d+$/.test(raw)) {
+    const numeric = Number(raw);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return numeric < 1_000_000_000_000 ? numeric * 1000 : numeric;
+    }
+  }
+
+  const isoTs = Date.parse(raw);
+  if (!Number.isNaN(isoTs)) return isoTs;
+
+  const match = raw.match(
+    /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
+  if (!match) return Number.NaN;
+
+  const day = Number.parseInt(match[1], 10);
+  const month = Number.parseInt(match[2], 10);
+  let year = Number.parseInt(match[3], 10);
+  const hour = Number.parseInt(match[4] || "0", 10);
+  const minute = Number.parseInt(match[5] || "0", 10);
+  const second = Number.parseInt(match[6] || "0", 10);
+
+  if (year < 100) year += 2000;
+  const parsed = new Date(year, month - 1, day, hour, minute, second).getTime();
+  return Number.isNaN(parsed) ? Number.NaN : parsed;
+}
+
+function getOrderTimestamp(order: { createdAt?: unknown; updatedAt?: unknown }) {
+  const createdTs = parseOrderDateValue(order.createdAt);
+  if (!Number.isNaN(createdTs) && createdTs > 0) return createdTs;
+
+  const updatedTs = parseOrderDateValue(order.updatedAt);
+  if (!Number.isNaN(updatedTs) && updatedTs > 0) return updatedTs;
+
+  return 0;
+}
+
 // Check if user has admin access (for commission settings)
 function hasAdminAccess(req: AuthRequest): boolean {
   return (
@@ -1105,6 +1158,9 @@ export async function getDashboardStats(
 
     const orders = await googleSheets.getAllOrders();
     const regularOrders = orders || [];
+    const recentOrders = [...regularOrders].sort(
+      (a: any, b: any) => getOrderTimestamp(b) - getOrderTimestamp(a)
+    );
 
     const totalRevenue = regularOrders
       .filter((o: any) => o.paymentStatus === PaymentStatus.VERIFIED)
@@ -1143,6 +1199,7 @@ export async function getDashboardStats(
         ).length,
         totalRevenue,
         totalProductsSold,
+        recentOrders: recentOrders.slice(0, 10),
       },
     });
   } catch (error) {

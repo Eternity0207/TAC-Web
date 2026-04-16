@@ -15,11 +15,56 @@ import {
   OrderType,
 } from "../types";
 
+function parseOrderDateValue(value: unknown): number {
+  if (value == null) return Number.NaN;
+
+  if (value instanceof Date) {
+    const ts = value.getTime();
+    return Number.isFinite(ts) ? ts : Number.NaN;
+  }
+
+  if (typeof value === "number") {
+    if (!Number.isFinite(value) || value <= 0) return Number.NaN;
+    // Support both seconds and milliseconds timestamps.
+    return value < 1_000_000_000_000 ? value * 1000 : value;
+  }
+
+  const raw = String(value).trim();
+  if (!raw) return Number.NaN;
+
+  if (/^\d+$/.test(raw)) {
+    const numeric = Number(raw);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return numeric < 1_000_000_000_000 ? numeric * 1000 : numeric;
+    }
+  }
+
+  const isoTs = Date.parse(raw);
+  if (!Number.isNaN(isoTs)) return isoTs;
+
+  // Fallback parser for values like 16/4/2026 or 16-04-2026 13:45:10
+  const match = raw.match(
+    /^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/,
+  );
+  if (!match) return Number.NaN;
+
+  const day = Number.parseInt(match[1], 10);
+  const month = Number.parseInt(match[2], 10);
+  let year = Number.parseInt(match[3], 10);
+  const hour = Number.parseInt(match[4] || "0", 10);
+  const minute = Number.parseInt(match[5] || "0", 10);
+  const second = Number.parseInt(match[6] || "0", 10);
+
+  if (year < 100) year += 2000;
+  const parsed = new Date(year, month - 1, day, hour, minute, second).getTime();
+  return Number.isNaN(parsed) ? Number.NaN : parsed;
+}
+
 function getOrderTimestamp(order: Partial<Order> & { updatedAt?: string }) {
-  const createdTs = new Date(order.createdAt || "").getTime();
+  const createdTs = parseOrderDateValue(order.createdAt);
   if (!Number.isNaN(createdTs) && createdTs > 0) return createdTs;
 
-  const updatedTs = new Date(order.updatedAt || "").getTime();
+  const updatedTs = parseOrderDateValue(order.updatedAt);
   if (!Number.isNaN(updatedTs) && updatedTs > 0) return updatedTs;
 
   return 0;
@@ -858,6 +903,9 @@ export async function getDashboardStats(
     // Orders sheet contains ONLY regular orders now (bulk orders are in separate sheet)
     // No need to filter - all orders from this sheet are regular orders
     const regularOrders = orders;
+    const sortedRecentOrders = [...regularOrders].sort(
+      (a, b) => getOrderTimestamp(b) - getOrderTimestamp(a),
+    );
 
     res.json({
       success: true,
@@ -910,7 +958,7 @@ export async function getDashboardStats(
             )
           );
         }, 0),
-        recentOrders: regularOrders.slice(0, 10),
+        recentOrders: sortedRecentOrders.slice(0, 10),
         // Bulk order stats are now fetched separately from the Bulk Orders sheet
         // via the /bulk-orders/stats API endpoint
       },
