@@ -327,6 +327,7 @@ router.put("/monthly-targets", authMiddleware, authorize(UserRole.ADMIN, UserRol
 
 // Bulk Enquiries Administration
 router.get("/bulk-enquiries", authMiddleware, bulkOrderController.getBulkEnquiries);
+router.put("/bulk-enquiries/:id/status", authMiddleware, bulkOrderController.updateBulkEnquiryStatus);
 // router.post("/bulk-enquiries", authMiddleware, bulkOrderController.createBulkEnquiry);
 
 // Video Reviews & WhatsApp Reviews

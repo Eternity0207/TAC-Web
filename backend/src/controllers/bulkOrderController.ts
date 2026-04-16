@@ -6,6 +6,10 @@ import googleSheets, {
 import bulkPricingService from "../services/bulkPricingService";
 import payuPayment from "../services/payuPayment";
 import qrGenerator from "../services/qrGenerator";
+import {
+  getResolvedBulkPricingConfig,
+  getResolvedPackagingOptions,
+} from "../services/bulkConfigResolver";
 import { AuthRequest } from "../middleware/auth";
 import {
   UserRole,
@@ -13,8 +17,6 @@ import {
   PaymentStatus,
   PaymentMode,
   OrderType,
-  BulkPricingConfig,
-  PackagingOption,
   Order,
 } from "../types";
 
@@ -92,12 +94,8 @@ export async function createBulkOrder(
     }
 
     // Get pricing configs
-    const pricingConfigs = (await googleSheets.getConfig(
-      "bulk_pricing",
-    )) as BulkPricingConfig[];
-    const packagingOptions = (await googleSheets.getConfig(
-      "packaging",
-    )) as PackagingOption[];
+    const pricingConfigs = await getResolvedBulkPricingConfig();
+    const packagingOptions = await getResolvedPackagingOptions();
 
     if (!pricingConfigs || pricingConfigs.length === 0) {
       res
@@ -110,7 +108,7 @@ export async function createBulkOrder(
     const calculation = bulkPricingService.calculateBulkPrice(
       products,
       pricingConfigs,
-      packagingOptions || bulkPricingService.getPackagingOptions(),
+      packagingOptions,
     );
 
     // Create the order products
@@ -1130,61 +1128,93 @@ export async function createBulkEnquiry(
   res: Response,
 ): Promise<void> {
   try {
-    const { name, email, phone, company, message } = req.body;
+    const rawContactPerson = String(
+      req.body.contactPerson ?? req.body.name ?? "",
+    ).trim();
+    const rawBusinessName = String(
+      req.body.businessName ?? req.body.company ?? "",
+    ).trim();
+    const rawEmail = String(req.body.email ?? "").trim().toLowerCase();
+    const rawPhone = String(req.body.phone ?? "").trim();
+    const rawProductInterest = String(req.body.productInterest ?? "").trim();
+    const rawEstimatedQuantity = String(req.body.estimatedQuantity ?? "").trim();
+    const rawMessage = String(req.body.message ?? "").trim();
 
-    // Validate required fields
-    if (!name || !email || !phone || !message) {
-      res.status(400).json({
-        success: false,
-        message: "Name, email, phone, and message are required",
-      });
-      return;
+    const normalizedPhone = rawPhone.replace(/\D/g, "");
+    const phone =
+      normalizedPhone.length === 12 && normalizedPhone.startsWith("91")
+        ? normalizedPhone.slice(2)
+        : normalizedPhone.length === 11 && normalizedPhone.startsWith("0")
+          ? normalizedPhone.slice(1)
+          : normalizedPhone;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const errors: Array<{ field: string; message: string }> = [];
+
+    if (!rawContactPerson) {
+      errors.push({ field: "name", message: "Contact person name is required" });
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      res.status(400).json({
-        success: false,
+    if (!rawEmail) {
+      errors.push({ field: "email", message: "Email is required" });
+    } else if (!emailRegex.test(rawEmail)) {
+      errors.push({
+        field: "email",
         message: "Please provide a valid email address",
       });
-      return;
     }
 
-    // Validate phone format (basic validation)
-    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
-    if (!phoneRegex.test(phone)) {
+    if (!rawPhone) {
+      errors.push({ field: "phone", message: "Phone number is required" });
+    } else if (!/^\d{10}$/.test(phone)) {
+      errors.push({
+        field: "phone",
+        message: "Please provide a valid 10-digit phone number",
+      });
+    }
+
+    if (!rawMessage) {
+      errors.push({
+        field: "message",
+        message: "Please share your bulk requirement in the message",
+      });
+    }
+
+    if (errors.length > 0) {
       res.status(400).json({
         success: false,
-        message: "Please provide a valid phone number",
+        message: errors[0].message,
+        errors,
       });
       return;
     }
 
-    // Create enquiry data
-    const enquiryData = {
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      phone: phone.trim(),
-      company: company ? company.trim() : '',
-      message: message.trim(),
-      enquiryType: 'bulk',
-      source: 'website',
-      createdAt: new Date().toISOString(),
-      status: 'pending'
-    };
+    const enquiryId = `ENQ-${Date.now()}`;
 
-    // Save to Google Sheets (you might want to create a separate sheet for enquiries)
-    // For now, we'll log it and send response
-    console.log('Bulk Enquiry Received:', enquiryData);
+    const enquiry = await googleSheets.createBulkEnquiry({
+      id: enquiryId,
+      businessName: rawBusinessName || "",
+      contactPerson: rawContactPerson,
+      email: rawEmail,
+      phone,
+      productInterest: rawProductInterest || "",
+      estimatedQuantity: rawEstimatedQuantity || "",
+      message: rawMessage,
+      status: "NEW",
+      source: "website",
+      enquiryType: "bulk",
+      // Keep legacy fields for backward compatibility in existing views.
+      name: rawContactPerson,
+      company: rawBusinessName || "",
+    });
 
     res.status(201).json({
       success: true,
       message: "Thank you for your bulk enquiry! We will contact you soon.",
       data: {
-        enquiryId: `ENQ-${Date.now()}`,
-        status: 'received'
-      }
+        enquiryId: enquiry?.id || enquiryId,
+        status: enquiry?.status || "NEW",
+      },
     });
 
   } catch (error) {
@@ -1214,6 +1244,62 @@ export async function getBulkEnquiries(req: AuthRequest, res: Response): Promise
   }
 }
 
+export async function updateBulkEnquiryStatus(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
+  try {
+    if (!canCreateBulkOrders(req)) {
+      res.status(403).json({ success: false, message: "Access denied" });
+      return;
+    }
+
+    const { id } = req.params;
+    const status = String(req.body?.status || "")
+      .trim()
+      .toUpperCase();
+    const notes = String(req.body?.notes || "").trim();
+
+    const allowedStatuses = new Set([
+      "NEW",
+      "CONTACTED",
+      "CONVERTED",
+      "CLOSED",
+    ]);
+
+    if (!status || !allowedStatuses.has(status)) {
+      res.status(400).json({
+        success: false,
+        message: "Valid status is required",
+      });
+      return;
+    }
+
+    const enquiry = await googleSheets.updateBulkEnquiry(id, {
+      status,
+      notes,
+      updatedBy: req.user?.id || "",
+    });
+
+    if (!enquiry) {
+      res.status(404).json({ success: false, message: "Enquiry not found" });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: "Enquiry status updated",
+      data: enquiry,
+    });
+  } catch (error) {
+    console.error("Update bulk enquiry status error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update enquiry status",
+    });
+  }
+}
+
 export default {
   createBulkOrder,
   getBulkOrders,
@@ -1232,4 +1318,5 @@ export default {
   uploadBulkDeliveryReceipt,
   createBulkEnquiry,
   getBulkEnquiries,
+  updateBulkEnquiryStatus,
 };

@@ -1,6 +1,10 @@
 import { Response } from 'express';
 import googleSheets from '../services/googleSheets';
 import bulkPricingService from '../services/bulkPricingService';
+import {
+    getResolvedBulkPricingConfig,
+    getResolvedPackagingOptions
+} from '../services/bulkConfigResolver';
 import { AuthRequest } from '../middleware/auth';
 import { UserRole, BulkPricingConfig, PackagingOption } from '../types';
 
@@ -24,11 +28,11 @@ export async function getBulkPricingConfig(req: AuthRequest, res: Response): Pro
             return;
         }
 
-        const config = await googleSheets.getConfig('bulk_pricing');
+        const config = await getResolvedBulkPricingConfig();
 
         res.json({
             success: true,
-            data: config || [],
+            data: config,
         });
     } catch (error) {
         console.error('Get bulk pricing config error:', error);
@@ -85,8 +89,7 @@ export async function getPackagingConfig(req: AuthRequest, res: Response): Promi
             return;
         }
 
-        const config = await googleSheets.getConfig('packaging');
-        const options = config || bulkPricingService.getPackagingOptions();
+        const options = await getResolvedPackagingOptions();
 
         res.json({
             success: true,
@@ -209,8 +212,8 @@ export async function previewBulkPrice(req: AuthRequest, res: Response): Promise
         }
 
         // Get pricing configs and packaging options
-        const pricingConfigs = await googleSheets.getConfig('bulk_pricing') as BulkPricingConfig[];
-        const packagingOptions = await googleSheets.getConfig('packaging') as PackagingOption[];
+        const pricingConfigs = await getResolvedBulkPricingConfig();
+        const packagingOptions = await getResolvedPackagingOptions();
 
         if (!pricingConfigs || pricingConfigs.length === 0) {
             res.status(400).json({ success: false, message: 'No pricing configuration found. Please configure bulk pricing first.' });
@@ -220,7 +223,7 @@ export async function previewBulkPrice(req: AuthRequest, res: Response): Promise
         const calculation = bulkPricingService.calculateBulkPrice(
             products,
             pricingConfigs,
-            packagingOptions || bulkPricingService.getPackagingOptions()
+            packagingOptions
         );
 
         res.json({
