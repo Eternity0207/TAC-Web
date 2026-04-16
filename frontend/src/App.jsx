@@ -35,6 +35,7 @@ function App() {
             <Route path="/team" element={<Team />} />
             <Route path="/careers" element={<Careers />} />
             <Route path="/bulk-enquiry" element={<BulkEnquiry />} />
+            <Route path="/bulk-inquiry" element={<BulkEnquiry />} />
           </Routes>
         </MainLayout>
       </Router>
