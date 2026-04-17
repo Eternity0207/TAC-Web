@@ -1,13 +1,12 @@
 import { Helmet } from 'react-helmet-async';
 import { useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
 import { apiService } from '../services/api';
 import ProductCard, { ProductCardSkeleton } from '../components/ProductCard';
-import AnimatedSection from '../components/AnimatedSection';
 
 const normalizeProduct = (product) => {
   const variants = Array.isArray(product?.variants) ? product.variants : [];
   const primaryVariant = variants[0] || {};
-
   return {
     ...product,
     id: product?.id || product?.slug,
@@ -23,11 +22,11 @@ const normalizeProduct = (product) => {
 };
 
 const doesReviewMatchProduct = (reviewProductName, productName) => {
-  const reviewName = String(reviewProductName || '').trim().toLowerCase();
-  const currentProduct = String(productName || '').trim().toLowerCase();
-  if (!reviewName || !currentProduct) return false;
-  if (reviewName === currentProduct || reviewName === 'both products') return true;
-  return reviewName.includes(currentProduct) || currentProduct.includes(reviewName);
+  const r = String(reviewProductName || '').trim().toLowerCase();
+  const p = String(productName || '').trim().toLowerCase();
+  if (!r || !p) return false;
+  if (r === p || r === 'both products') return true;
+  return r.includes(p) || p.includes(r);
 };
 
 const Products = () => {
@@ -41,22 +40,17 @@ const Products = () => {
       setLoading(true);
       setError('');
       try {
-        const [productResponse, reviewResponse] = await Promise.all([
+        const [productRes, reviewRes] = await Promise.all([
           apiService.products.getPublic(),
           apiService.reviews.getAll(),
         ]);
-
-        const data = Array.isArray(productResponse?.data?.data) ? productResponse.data.data : [];
-        const reviewData = Array.isArray(reviewResponse?.data?.data) ? reviewResponse.data.data : [];
-        const normalized = data
-          .map(normalizeProduct)
-          .filter((product) => product.id && product.name)
-          .sort((a, b) => a.displayOrder - b.displayOrder);
-
-        setProducts(normalized);
+        const data = Array.isArray(productRes?.data?.data) ? productRes.data.data : [];
+        const reviewData = Array.isArray(reviewRes?.data?.data) ? reviewRes.data.data : [];
+        setProducts(
+          data.map(normalizeProduct).filter(p => p.id && p.name).sort((a, b) => a.displayOrder - b.displayOrder)
+        );
         setReviews(reviewData);
-      } catch (error) {
-        console.error('Failed to load products:', error);
+      } catch {
         setError('Unable to load products right now. Please try again soon.');
       } finally {
         setLoading(false);
@@ -67,28 +61,16 @@ const Products = () => {
 
   const ratingMap = useMemo(() => {
     const map = new Map();
-
-    products.forEach((product) => {
-      const fromProduct = {
-        avgRating: Number(product?.avgRating || 0),
-        reviewCount: Number(product?.reviewCount || 0),
-      };
-
-      if (fromProduct.reviewCount > 0) {
-        map.set(product.id, fromProduct);
+    products.forEach(product => {
+      if (product.reviewCount > 0) {
+        map.set(product.id, { avgRating: product.avgRating, reviewCount: product.reviewCount });
         return;
       }
-
-      const matched = reviews.filter((review) => doesReviewMatchProduct(review?.productName, product?.name));
-      if (!matched.length) {
-        map.set(product.id, { avgRating: 0, reviewCount: 0 });
-        return;
-      }
-
-      const avgRating = matched.reduce((sum, review) => sum + Number(review?.rating || 0), 0) / matched.length;
-      map.set(product.id, { avgRating, reviewCount: matched.length });
+      const matched = reviews.filter(r => doesReviewMatchProduct(r?.productName, product?.name));
+      if (!matched.length) { map.set(product.id, { avgRating: 0, reviewCount: 0 }); return; }
+      const avg = matched.reduce((s, r) => s + Number(r?.rating || 0), 0) / matched.length;
+      map.set(product.id, { avgRating: avg, reviewCount: matched.length });
     });
-
     return map;
   }, [products, reviews]);
 
@@ -99,34 +81,31 @@ const Products = () => {
         <meta name="description" content="Browse our premium range of natural Amla products including sun-dried powder and delicious candy." />
       </Helmet>
 
-      <div className="section-padding bg-gray-50">
+      <div className="section-padding bg-cream">
         <div className="container-custom">
-          <AnimatedSection className="text-center max-w-3xl mx-auto mb-16">
-            <h1 className="heading-primary mb-6">Our Products</h1>
-            <p className="text-gray-600 text-lg">
-              Explore our premium range of natural Amla products
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center max-w-3xl mx-auto mb-14"
+          >
+            <span className="text-accent font-semibold text-xs uppercase tracking-widest">Shop</span>
+            <h1 className="heading-primary mt-2 mb-4">Our Products</h1>
+            <p className="text-gray-500 text-base leading-relaxed">
+              Explore our premium range of natural Amla products — freshly picked and processed within a day.
             </p>
-          </AnimatedSection>
+          </motion.div>
 
-          {error ? (
-            <div className="mb-8 rounded-2xl border border-red-200 bg-red-50 p-4 text-center text-red-600">
-              {error}
-            </div>
-          ) : null}
+          {error && (
+            <div className="mb-8 rounded-2xl border border-red-200 bg-red-50 p-4 text-center text-red-600">{error}</div>
+          )}
 
-          <AnimatedSection delay={80} className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-6xl mx-auto">
-            {loading ? (
-              Array.from({ length: 4 }).map((_, idx) => <ProductCardSkeleton key={idx} />)
-            ) : null}
-
-            {!loading && !products.length && !error ? (
-              <div className="col-span-full rounded-2xl border border-gray-200 bg-gray-50 p-6 text-center text-gray-600">
-                No products available right now.
-              </div>
-            ) : null}
-
-            {!loading
-              ? products.map((product, index) => {
+          {/* Product grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+            {loading
+              ? Array.from({ length: 4 }).map((_, i) => <ProductCardSkeleton key={i} />)
+              : products.map((product, index) => {
                 const stats = ratingMap.get(product.id) || { avgRating: 0, reviewCount: 0 };
                 return (
                   <ProductCard
@@ -139,8 +118,25 @@ const Products = () => {
                   />
                 );
               })
-              : null}
-          </AnimatedSection>
+            }
+            {!loading && !products.length && !error && (
+              <div className="col-span-full rounded-2xl border border-gray-200 bg-white p-6 text-center text-gray-500">
+                No products available right now.
+              </div>
+            )}
+          </div>
+
+          {/* Free delivery */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="mt-14 text-center"
+          >
+            <div className="inline-flex items-center gap-2.5 rounded-full bg-accent-50 border border-accent-200 px-5 py-2.5 text-sm font-semibold text-accent-700">
+              <i className="fas fa-truck" /> Free Delivery on Orders Above ₹299 &middot; Ships All India
+            </div>
+          </motion.div>
         </div>
       </div>
     </>

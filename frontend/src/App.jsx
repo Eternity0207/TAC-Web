@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import { useEffect, useState } from 'react';
+import { CartProvider } from './context/CartContext';
 import MainLayout from './layouts/MainLayout';
 import Home from './pages/Home';
 import Products from './pages/Products';
@@ -24,20 +25,22 @@ function App() {
 
   return (
     <HelmetProvider>
-      <GlobalLoader isVisible={showLoader} />
-      <Router>
-        <MainLayout>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/products" element={<Products />} />
-            <Route path="/products/:slug" element={<ProductDetail />} />
-            <Route path="/blog" element={<Blog />} />
-            <Route path="/team" element={<Team />} />
-            <Route path="/careers" element={<Careers />} />
-            <Route path="/bulk-enquiry" element={<BulkEnquiry />} />
-          </Routes>
-        </MainLayout>
-      </Router>
+      <CartProvider>
+        <GlobalLoader isVisible={showLoader} />
+        <Router>
+          <MainLayout>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/products" element={<Products />} />
+              <Route path="/products/:slug" element={<ProductDetail />} />
+              <Route path="/blog" element={<Blog />} />
+              <Route path="/team" element={<Team />} />
+              <Route path="/careers" element={<Careers />} />
+              <Route path="/bulk-enquiry" element={<BulkEnquiry />} />
+            </Routes>
+          </MainLayout>
+        </Router>
+      </CartProvider>
     </HelmetProvider>
   );
 }

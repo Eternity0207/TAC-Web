@@ -11,11 +11,15 @@
   }
 
   body {
-    @apply m-0 font-sans antialiased bg-gray-50 text-gray-900;
+    @apply m-0 font-sans antialiased bg-cream text-gray-900;
   }
 
   html {
     @apply scroll-smooth;
+  }
+
+  ::selection {
+    @apply bg-primary/15 text-primary-900;
   }
 }
 
@@ -25,11 +29,15 @@
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center bg-primary hover:bg-primary-800 text-white font-semibold py-3 px-7 rounded-full transition-all duration-200 ease-in-out shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-95;
+    @apply inline-flex items-center justify-center bg-primary hover:bg-primary-800 text-white font-semibold py-3 px-7 rounded-full transition-all duration-200 ease-out shadow-soft hover:shadow-soft-lg transform active:scale-[0.97];
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center bg-accent hover:bg-accent-600 text-white font-semibold py-3 px-7 rounded-full transition-all duration-200 ease-in-out shadow-md hover:shadow-lg transform hover:scale-[1.02] active:scale-95;
+    @apply inline-flex items-center justify-center bg-accent hover:bg-accent-600 text-white font-semibold py-3 px-7 rounded-full transition-all duration-200 ease-out shadow-soft hover:shadow-soft-lg transform active:scale-[0.97];
+  }
+
+  .btn-outline {
+    @apply inline-flex items-center justify-center bg-transparent border-2 border-gray-200 text-gray-700 font-semibold py-3 px-7 rounded-full transition-all duration-200 ease-out hover:border-primary hover:text-primary hover:shadow-soft active:scale-[0.97];
   }
 
   .section-padding {
@@ -49,15 +57,15 @@
   }
 
   .card-lift {
-    @apply transition-all duration-200 ease-in-out shadow-md hover:shadow-lg hover:-translate-y-1;
+    @apply transition-all duration-300 ease-out shadow-soft hover:shadow-soft-lg hover:-translate-y-1;
   }
 
   .fade-in-up {
-    animation: fadeInUp 360ms ease-out both;
+    animation: fadeInUp 500ms ease-out both;
   }
 
   .slide-down {
-    animation: slideDown 320ms ease-out both;
+    animation: slideDown 400ms ease-out both;
   }
 
   .nav-link {
@@ -74,8 +82,8 @@
     background-color: currentColor;
     transform: scaleX(0);
     transform-origin: left;
-    transition: transform 220ms ease-in-out;
-    opacity: 0.75;
+    transition: transform 250ms ease-out;
+    opacity: 0.7;
   }
 
   .nav-link:hover::after {
@@ -92,8 +100,8 @@
     position: absolute;
     inset: 0;
     transform: translateX(-100%);
-    background: linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.16), transparent);
-    animation: shimmer 1.2s infinite;
+    background: linear-gradient(90deg, transparent, rgba(34, 197, 94, 0.12), transparent);
+    animation: shimmer 1.5s infinite;
   }
 
   .loader-dot {
@@ -105,14 +113,24 @@
   }
 
   .animate-pulse-slow {
-    animation: pulseSlow 1.8s infinite ease-in-out;
+    animation: pulseSlow 2s infinite ease-in-out;
+  }
+
+  /* Glass morphism */
+  .glass {
+    @apply bg-white/70 backdrop-blur-xl border border-white/20;
+  }
+
+  .glass-dark {
+    @apply bg-black/10 backdrop-blur-xl border border-white/10;
   }
 }
 
+/* Animations */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -138,24 +156,33 @@
 }
 
 @keyframes dotPulse {
-  0%,
-  80%,
-  100% {
+  0%, 80%, 100% {
     transform: translateY(0);
-    opacity: 0.55;
+    opacity: 0.5;
   }
   40% {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
     opacity: 1;
   }
 }
 
 @keyframes pulseSlow {
-  0%,
-  100% {
+  0%, 100% {
     transform: scale(1);
   }
   50% {
-    transform: scale(1.05);
+    transform: scale(1.04);
   }
+}
+
+/* Custom scrollbar for cart drawer */
+.overflow-y-auto::-webkit-scrollbar {
+  width: 4px;
+}
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
 }

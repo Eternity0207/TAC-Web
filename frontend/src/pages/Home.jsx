@@ -1,862 +1,388 @@
 import { Helmet } from 'react-helmet-async';
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { motion, useInView } from 'framer-motion';
+import { useRef } from 'react';
 import { apiService } from '../services/api';
 import ProductCard, { ProductCardSkeleton } from '../components/ProductCard';
-import AnimatedSection from '../components/AnimatedSection';
 
+/* ── Helpers ── */
+const normalizeProduct = (product) => {
+  const variants = Array.isArray(product?.variants) ? product.variants : [];
+  const primaryVariant = variants[0] || {};
+  return {
+    id: product?.id || product?.slug,
+    slug: product?.slug,
+    name: product?.name || 'Product',
+    price: Number(primaryVariant?.price || 0),
+    mrp: Number(primaryVariant?.mrp || primaryVariant?.price || 0),
+    variants,
+    imageUrl: product?.imageUrl || '',
+    description: product?.shortDescription || product?.description || '',
+    shortDescription: product?.shortDescription || product?.description || '',
+    weight: primaryVariant?.weight || '',
+    avgRating: Number(product?.avgRating || 0),
+    reviewCount: Number(product?.reviewCount || 0),
+    displayOrder: Number(product?.displayOrder || 999),
+    isFeatured: product?.isFeatured,
+  };
+};
+
+/* ── Section wrapper with scroll reveal ── */
+const RevealSection = ({ children, className = '', delay = 0 }) => {
+  const ref = useRef(null);
+  const isInView = useInView(ref, { once: true, margin: '-60px' });
+  return (
+    <motion.section
+      ref={ref}
+      initial={{ opacity: 0, y: 30 }}
+      animate={isInView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.6, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className={className}
+    >
+      {children}
+    </motion.section>
+  );
+};
+
+/* ── Stagger container ── */
+const stagger = {
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.08 } },
+};
+const fadeUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } },
+};
+
+/* ── Trust items ── */
+const TRUST_ITEMS = [
+  { icon: 'fas fa-leaf', label: '100% Natural' },
+  { icon: 'fas fa-flask', label: 'No Additives' },
+  { icon: 'fas fa-box-open', label: 'Farm to Pack' },
+  { icon: 'fas fa-shield-alt', label: 'Ayurvedic Wellness' },
+];
+
+/* ── Benefits ── */
+const BENEFITS = [
+  { icon: 'fas fa-leaf', color: 'primary', title: '100% Natural', desc: 'Pure, sun-dried Amla with no preservatives or artificial colors.' },
+  { icon: 'fas fa-bolt', color: 'accent', title: 'Same-Day Processing', desc: 'Processed within a day of harvest for maximum freshness and aroma.' },
+  { icon: 'fas fa-heart', color: 'primary', title: 'Health Benefits', desc: 'Improves gut health, relieves bloating, and boosts immunity naturally.' },
+];
+
+/* ── Main Component ── */
 const Home = () => {
-  // Order modal state
-  const [showOrderModal, setShowOrderModal] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [orderLoading, setOrderLoading] = useState(false);
-  const [orderSuccess, setOrderSuccess] = useState(false);
-  const [orderError, setOrderError] = useState('');
-  const [orderData, setOrderData] = useState(null); // Store complete order response
-  const [couponCode, setCouponCode] = useState('');
-  const [couponLoading, setCouponLoading] = useState(false);
-  const [couponError, setCouponError] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [products, setProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState('');
   const [reviews, setReviews] = useState([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
 
-  // Order form data
-  const [orderFormData, setOrderFormData] = useState({
-    customerName: '',
-    customerEmail: '',
-    customerPhone: '',
-    addressLine1: '',
-    addressLine2: '',
-    city: '',
-    state: '',
-    pincode: '',
-    country: 'India',
-    quantity: 1,
-  });
-
-  const normalizeProduct = (product) => {
-    const variants = Array.isArray(product?.variants) ? product.variants : [];
-    const primaryVariant = variants.length ? variants[0] : null;
-    return {
-      id: product?.id || product?.slug,
-      slug: product?.slug,
-      name: product?.name || 'Product',
-      price: Number(primaryVariant?.price || 0),
-      mrp: Number(primaryVariant?.mrp || primaryVariant?.price || 0),
-      variants,
-      imageUrl: product?.imageUrl || '',
-      description: product?.shortDescription || product?.description || '',
-      shortDescription: product?.shortDescription || product?.description || '',
-      weight: primaryVariant?.weight || '',
-      avgRating: Number(product?.avgRating || 0),
-      reviewCount: Number(product?.reviewCount || 0),
-      displayOrder: Number(product?.displayOrder || 999),
-    };
-  };
-
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       setProductsLoading(true);
-      setProductsError('');
       try {
-        const [productResponse, reviewResponse] = await Promise.all([
+        const [productRes, reviewRes] = await Promise.all([
           apiService.products.getPublic(),
           apiService.reviews.getAll(),
         ]);
-
-        const items = Array.isArray(productResponse?.data?.data) ? productResponse.data.data : [];
-        const reviewData = Array.isArray(reviewResponse?.data?.data) ? reviewResponse.data.data : [];
-        const normalized = items
-          .map(normalizeProduct)
-          .filter((p) => p.id && p.name)
-          .sort((a, b) => a.displayOrder - b.displayOrder);
-        setProducts(normalized);
+        const items = Array.isArray(productRes?.data?.data) ? productRes.data.data : [];
+        const reviewData = Array.isArray(reviewRes?.data?.data) ? reviewRes.data.data : [];
+        setProducts(
+          items.map(normalizeProduct).filter(p => p.id && p.name).sort((a, b) => a.displayOrder - b.displayOrder)
+        );
         setReviews(reviewData);
-      } catch (error) {
-        console.error('Failed to fetch products:', error);
+      } catch {
         setProductsError('Unable to load products right now.');
       } finally {
         setProductsLoading(false);
         setReviewsLoading(false);
       }
     };
-
-    fetchProducts();
+    fetchData();
   }, []);
 
   const featuredProducts = useMemo(() => products.slice(0, 4), [products]);
 
   const highlightedReviews = useMemo(() => {
-    const approved = reviews.filter((review) => Number(review?.rating || 0) > 0);
-    return approved
+    return reviews
+      .filter(r => Number(r?.rating || 0) >= 4)
       .sort((a, b) => Number(b?.rating || 0) - Number(a?.rating || 0))
-      .slice(0, 3);
+      .slice(0, 6);
   }, [reviews]);
 
-  // Handle order now click
-  const handleOrderNow = (product) => {
-    if (!product) return;
-    setSelectedProduct(product);
-    setShowOrderModal(true);
-    setOrderSuccess(false);
-    setOrderError('');
-    setCouponCode('');
-    setCouponError('');
-    setAppliedCoupon(null);
-  };
-
-  // Handle order form changes
-  const handleOrderFormChange = (e) => {
-    setOrderFormData({
-      ...orderFormData,
-      [e.target.name]: e.target.value
-    });
-    setOrderError('');
-  };
-
-  const getSubtotal = () => (selectedProduct?.price * Number(orderFormData.quantity || 1)) || 0;
-  const getShipping = () => (getSubtotal() >= 299 ? 0 : 40);
-  const getDiscount = () => Number(appliedCoupon?.discountAmount || 0);
-  const getGrandTotal = () => Math.max(0, getSubtotal() + getShipping() - getDiscount());
-
-  const handleApplyCoupon = async () => {
-    const code = String(couponCode || '').trim().toUpperCase();
-    if (!code) {
-      setCouponError('Please enter coupon code');
-      setAppliedCoupon(null);
-      return;
-    }
-
-    setCouponLoading(true);
-    setCouponError('');
-    try {
-      const response = await apiService.coupons.validate({
-        couponCode: code,
-        subtotal: getSubtotal(),
-      });
-      const result = response?.data || {};
-      if (result.valid) {
-        setAppliedCoupon({
-          code,
-          discountAmount: Number(result.discountAmount || 0),
-          discountType: result?.coupon?.discountType || null,
-          message: result.message || 'Coupon applied',
-        });
-      } else {
-        setAppliedCoupon(null);
-        setCouponError(result.message || 'Invalid coupon');
-      }
-    } catch (error) {
-      setAppliedCoupon(null);
-      setCouponError(error?.response?.data?.message || 'Failed to validate coupon');
-    } finally {
-      setCouponLoading(false);
-    }
-  };
-
-  // Handle order submission
-  const handleOrderSubmit = async (e) => {
-    e.preventDefault();
-    setOrderLoading(true);
-    setOrderError('');
-
-    try {
-      const landingPayload = {
-        name: orderFormData.customerName,
-        email: orderFormData.customerEmail,
-        phone: orderFormData.customerPhone,
-        address: [orderFormData.addressLine1, orderFormData.addressLine2].filter(Boolean).join(', '),
-        city: orderFormData.city,
-        state: orderFormData.state,
-        pincode: orderFormData.pincode,
-        country: orderFormData.country,
-        products: [{
-          productId: selectedProduct.id,
-          name: selectedProduct.name,
-          price: selectedProduct.price,
-          quantity: orderFormData.quantity,
-          totalPrice: selectedProduct.price * orderFormData.quantity,
-          weight: selectedProduct.weight
-        }],
-        paymentMode: 'UPI_QR',
-        message: '',
-        couponCode: appliedCoupon?.code || '',
-        discountAmount: getDiscount(),
-        discountType: appliedCoupon?.discountType || null,
-      };
-
-      const response = await apiService.orders.createLanding(landingPayload);
-
-      if (response.data.success) {
-        setOrderSuccess(true);
-        const normalizedOrderData = {
-          order: {
-            orderNumber:
-              response?.data?.data?.order?.orderNumber ||
-              response?.data?.data?.orderNumber ||
-              response?.data?.orderNumber ||
-              '',
-            totalAmount:
-              response?.data?.data?.order?.totalAmount ||
-              response?.data?.data?.totalAmount ||
-              0,
-          },
-          qrCode:
-            response?.data?.data?.qrCode ||
-            response?.data?.qrCode ||
-            null,
-        };
-        setOrderData(normalizedOrderData);
-        // Reset form
-        setOrderFormData({
-          customerName: '',
-          customerEmail: '',
-          customerPhone: '',
-          addressLine1: '',
-          addressLine2: '',
-          city: '',
-          state: '',
-          pincode: '',
-          country: 'India',
-          quantity: 1,
-        });
-        setCouponCode('');
-        setAppliedCoupon(null);
-        setCouponError('');
-      }
-    } catch (error) {
-      console.error('Order submission error:', error);
-      setOrderError(
-        error.response?.data?.message ||
-        'Failed to place order. Please try again.'
-      );
-    } finally {
-      setOrderLoading(false);
-    }
-  };
-
-  // Close modal
-  const closeModal = () => {
-    setShowOrderModal(false);
-    setSelectedProduct(null);
-    setOrderError('');
-    setOrderSuccess(false);
-    setOrderData(null);
-  };
-
   const heroImage = products[0]?.imageUrl || '';
+
   return (
     <>
       <Helmet>
         <title>Natural Amla Powder & Candy Jaipur | The Awla Company - 100% Pure Indian Gooseberry</title>
-        <meta name="description" content="The Awla Company – freshly picked Amla processed within a day for maximum freshness & aroma. Premium natural Amla powder & candy that improves gut health, relieves bloating, and gives you healthier mornings. 100% natural, sun-dried, farm-to-pack in Jaipur." />
-        <meta name="keywords" content="amla powder, natural amla powder, awla powder, amla candy, indian gooseberry powder, buy amla powder online, pure amla powder, sun dried amla" />
+        <meta name="description" content="The Awla Company – freshly picked Amla processed within a day for maximum freshness & aroma. Premium natural Amla powder & candy. 100% natural, sun-dried, farm-to-pack in Jaipur." />
       </Helmet>
 
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center bg-gradient-to-br from-primary via-primary-700 to-primary-600 overflow-hidden">
-        {/* Background Image */}
-        <div
-          className="absolute inset-0 opacity-10 bg-cover bg-center"
-          style={heroImage ? { backgroundImage: `url(${heroImage})` } : undefined}
-        ></div>
+      {/* ═════════════ HERO ═════════════ */}
+      <section className="relative min-h-[90vh] flex items-center overflow-hidden bg-gradient-to-br from-primary via-primary-700 to-primary-600">
+        {/* Decorative blobs */}
+        <div className="absolute -top-32 -left-32 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
+        <div className="absolute -bottom-40 -right-40 h-[30rem] w-[30rem] rounded-full bg-white/5 blur-3xl" />
+
+        {heroImage && (
+          <div className="absolute inset-0 opacity-[0.07] bg-cover bg-center" style={{ backgroundImage: `url(${heroImage})` }} />
+        )}
 
         <div className="container-custom relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center py-20">
-            {/* Hero Content */}
-            <div className="fade-in-up text-white space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center py-16 lg:py-24">
+            {/* Left content */}
+            <motion.div
+              initial="hidden" animate="visible" variants={stagger}
+              className="text-white space-y-6"
+            >
               {/* Badges */}
-              <div className="flex flex-wrap gap-3 mb-6">
-                <span className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium">
-                  <i className="fas fa-leaf"></i>
-                  Freshly Picked
-                </span>
-                <span className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium">
-                  <i className="fas fa-bolt"></i>
-                  Same-Day Processed
-                </span>
-                <span className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium">
-                  <i className="fas fa-check-circle"></i>
-                  100% Natural
-                </span>
-              </div>
+              <motion.div variants={fadeUp} className="flex flex-wrap gap-2.5">
+                {['Freshly Picked', 'Same-Day Processed', '100% Natural'].map(label => (
+                  <span key={label} className="inline-flex items-center gap-1.5 rounded-full bg-white/15 backdrop-blur-sm px-3.5 py-1.5 text-xs font-medium tracking-wide">
+                    <i className="fas fa-check text-accent-300 text-[10px]" />
+                    {label}
+                  </span>
+                ))}
+              </motion.div>
 
-              <div className="inline-flex items-center gap-3 bg-accent text-white px-5 py-3 rounded-2xl shadow-lg ring-4 ring-accent-200/50">
-                <span className="text-xs uppercase tracking-wider font-bold">Limited Offer</span>
+              {/* Offer banner */}
+              <motion.div variants={fadeUp} className="inline-flex items-center gap-3 rounded-2xl bg-accent/90 backdrop-blur-sm px-5 py-3 shadow-glow-accent">
+                <span className="text-xs uppercase tracking-widest font-bold text-white/80">Limited Offer</span>
                 <span className="text-lg font-extrabold">15% OFF</span>
-                <span className="text-sm font-medium">First 50 Customers · Use FIRST50</span>
-              </div>
+                <span className="text-sm font-medium opacity-90">Use FIRST50</span>
+              </motion.div>
 
-              <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
-                The Awla Company<br />
-                <span className="text-accent-400">Royal Way to Stay Healthy</span>
-              </h1>
+              <motion.h1 variants={fadeUp} className="font-display text-4xl md:text-5xl lg:text-[3.5rem] font-bold leading-[1.12] tracking-tight">
+                The Awla Company
+                <br />
+                <span className="text-accent-300">Royal Way to Stay Healthy</span>
+              </motion.h1>
 
-              <p className="text-lg md:text-xl text-gray-100 leading-relaxed">
-                India's purest Amla products processed <strong>within a day of harvest</strong> for an irresistible fresh aroma.
-                Boost your <strong>gut health</strong>, beat <strong>bloating</strong>, and start <strong>healthier mornings</strong>.
-              </p>
+              <motion.p variants={fadeUp} className="text-base md:text-lg text-white/80 leading-relaxed max-w-lg">
+                India's purest Amla products processed <strong className="text-white">within a day</strong> of harvest.
+                Boost your gut health, beat bloating, and start healthier mornings.
+              </motion.p>
 
-              <div className="flex flex-wrap gap-4 pt-4">
-                <a href="#products" className="btn-secondary text-lg px-8">
+              <motion.div variants={fadeUp} className="flex flex-wrap gap-3 pt-2">
+                <Link to="/products" className="btn-secondary text-base px-8 shadow-glow-accent">
                   Shop Now
-                </a>
-                <a href="#products" className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-primary font-semibold py-3 px-8 rounded-full transition-all duration-200 ease-in-out hover:scale-[1.02] active:scale-95">
+                </Link>
+                <a href="#products" className="inline-flex items-center justify-center rounded-full border-2 border-white/30 bg-white/10 backdrop-blur-sm px-7 py-3 font-semibold text-white transition-all duration-200 hover:bg-white hover:text-primary active:scale-[0.97]">
                   Explore Products
                 </a>
-              </div>
+              </motion.div>
 
-              {/* Trust Indicators */}
-              <div className="flex flex-wrap gap-6 pt-6 text-sm">
-                <span className="flex items-center gap-2">
-                  <i className="fas fa-truck"></i>
-                  Free Delivery Above ₹299
-                </span>
-                <span className="flex items-center gap-2">
-                  <i className="fas fa-star"></i>
-                  4.8+ Rating
-                </span>
-                <span className="flex items-center gap-2">
-                  <i className="fas fa-map-marker-alt"></i>
-                  Ships All India
-                </span>
-              </div>
-            </div>
+              {/* Stats */}
+              <motion.div variants={fadeUp} className="flex flex-wrap gap-6 pt-4 text-sm text-white/70">
+                <span className="flex items-center gap-2"><i className="fas fa-truck text-accent-300" /> Free Delivery Above ₹299</span>
+                <span className="flex items-center gap-2"><i className="fas fa-star text-accent-300" /> 4.8+ Rating</span>
+                <span className="flex items-center gap-2"><i className="fas fa-map-marker-alt text-accent-300" /> Ships All India</span>
+              </motion.div>
+            </motion.div>
 
-            {/* Hero Image */}
-            <div className="fade-in-up relative" style={{ animationDelay: '90ms' }}>
-              <div className="relative">
-                {heroImage ? (
-                  <img
+            {/* Right: Hero image */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.7, delay: 0.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+              className="relative hidden lg:block"
+            >
+              {heroImage ? (
+                <div className="relative">
+                  <motion.img
+                    animate={{ y: [0, -8, 0] }}
+                    transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
                     src={heroImage}
-                    alt="Awla Product"
+                    alt="Premium Awla Product"
                     className="w-full max-w-md mx-auto rounded-3xl shadow-2xl"
                   />
-                ) : (
-                  <div className="w-full max-w-md mx-auto rounded-3xl shadow-2xl bg-white/10 h-[420px]" />
-                )}
-                <div className="absolute -bottom-4 -right-4 bg-white text-primary rounded-full w-24 h-24 flex flex-col items-center justify-center shadow-xl">
-                  <span className="text-3xl font-bold">100%</span>
-                  <span className="text-xs">Natural</span>
+                  <div className="absolute -bottom-3 -right-3 flex h-24 w-24 flex-col items-center justify-center rounded-2xl bg-white text-primary shadow-soft-lg">
+                    <span className="text-2xl font-extrabold leading-none">100%</span>
+                    <span className="text-[11px] font-semibold text-gray-500">Natural</span>
+                  </div>
                 </div>
-              </div>
-            </div>
+              ) : (
+                <div className="mx-auto h-[400px] max-w-md rounded-3xl bg-white/10" />
+              )}
+            </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Products Section */}
-      <section className="section-padding bg-gray-50" id="products">
+      {/* ═════════════ TRUST BAR ═════════════ */}
+      <RevealSection className="py-8 bg-white border-b border-gray-100">
         <div className="container-custom">
-          <AnimatedSection className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-accent font-semibold text-sm uppercase tracking-wider">Our Products</span>
-            <h2 className="heading-secondary mt-4 mb-6">
+          <motion.div
+            variants={stagger} initial="hidden" whileInView="visible" viewport={{ once: true }}
+            className="grid grid-cols-2 sm:grid-cols-4 gap-4"
+          >
+            {TRUST_ITEMS.map(({ icon, label }) => (
+              <motion.div key={label} variants={fadeUp}
+                className="flex items-center justify-center gap-2.5 rounded-xl bg-primary-50/60 p-3.5 text-center transition-shadow hover:shadow-soft"
+              >
+                <i className={`${icon} text-primary text-lg`} aria-hidden="true" />
+                <span className="text-sm font-semibold text-gray-800">{label}</span>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </RevealSection>
+
+      {/* ═════════════ PRODUCTS ═════════════ */}
+      <RevealSection className="section-padding bg-cream" id="products">
+        <div className="container-custom">
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <span className="text-accent font-semibold text-xs uppercase tracking-widest">Our Products</span>
+            <h2 className="heading-secondary mt-3 mb-4">
               Premium <span className="text-gradient">Awla Products</span>
             </h2>
-            <p className="text-gray-600 text-lg">
-              Freshly picked and processed within a day — our Amla products improve gut health,
-              relieve bloating, and give you healthier mornings
+            <p className="text-gray-500 text-base leading-relaxed">
+              Freshly picked and processed within a day — products that improve gut health,
+              relieve bloating, and give you healthier mornings.
             </p>
-          </AnimatedSection>
+          </div>
 
-          {/* Product Grid */}
-          <AnimatedSection delay={70} className="grid grid-cols-1 md:grid-cols-2 gap-10 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             {productsLoading
-              ? Array.from({ length: 4 }).map((_, idx) => <ProductCardSkeleton key={idx} />)
-              : null}
-
-            {!productsLoading
-              ? featuredProducts.map((product, index) => (
+              ? Array.from({ length: 4 }).map((_, i) => <ProductCardSkeleton key={i} />)
+              : featuredProducts.map((product, index) => (
                 <ProductCard
                   key={product.id}
                   index={index}
                   product={product}
                   avgRating={product.avgRating}
                   reviewCount={product.reviewCount}
-                  ctaLabel="Order Now"
-                  onPrimaryAction={handleOrderNow}
                   showDetailLink
                 />
               ))
-              : null}
-
-            {!productsLoading && !featuredProducts.length ? (
-              <div className="col-span-full rounded-2xl border border-gray-200 bg-gray-50 p-6 text-center text-gray-600">
+            }
+            {!productsLoading && !featuredProducts.length && (
+              <div className="col-span-full rounded-2xl border border-gray-200 bg-white p-6 text-center text-gray-500">
                 No products available right now.
               </div>
-            ) : null}
-          </AnimatedSection>
+            )}
+          </div>
 
-          {productsError ? (
-            <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-center text-red-600">
-              {productsError}
-            </div>
-          ) : null}
+          {productsError && (
+            <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-4 text-center text-red-600">{productsError}</div>
+          )}
 
-          {/* Free Delivery Badge */}
+          {/* Free delivery badge */}
           <div className="mt-12 text-center">
-            <div className="inline-flex items-center gap-3 bg-accent-50 text-accent-700 px-6 py-3 rounded-full font-semibold">
-              <i className="fas fa-truck text-xl"></i>
-              Free Delivery on Orders Above ₹299 · Ships All India
+            <div className="inline-flex items-center gap-2.5 rounded-full bg-accent-50 border border-accent-200 px-5 py-2.5 text-sm font-semibold text-accent-700">
+              <i className="fas fa-truck" /> Free Delivery on Orders Above ₹299
             </div>
           </div>
+
+          {products.length > 4 && (
+            <div className="mt-8 text-center">
+              <Link to="/products" className="btn-outline">
+                View All Products
+              </Link>
+            </div>
+          )}
         </div>
-      </section>
+      </RevealSection>
 
-      {/* Testimonials / Review Highlights */}
-      <section className="section-padding bg-primary-50">
+      {/* ═════════════ BENEFITS ═════════════ */}
+      <RevealSection className="section-padding bg-white">
         <div className="container-custom">
-          <AnimatedSection className="text-center max-w-3xl mx-auto mb-12">
-            <span className="text-accent font-semibold text-sm uppercase tracking-wider">Testimonials</span>
-            <h2 className="heading-secondary mt-4 mb-4">Loved By Health-Conscious Families</h2>
-            <p className="text-gray-600 text-lg">Real customer feedback from verified Awla buyers.</p>
-          </AnimatedSection>
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <h2 className="heading-secondary mb-4">
+              Why Choose <span className="text-gradient">The Awla Company</span>?
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+            {BENEFITS.map((b, i) => (
+              <motion.div
+                key={b.title}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.12, duration: 0.5 }}
+                whileHover={{ y: -4 }}
+                className="text-center rounded-2xl border border-gray-100 bg-gradient-to-b from-gray-50/50 to-white p-8 shadow-soft transition-shadow hover:shadow-soft-lg"
+              >
+                <div className={`mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl ${b.color === 'accent' ? 'bg-accent-50 text-accent' : 'bg-primary-50 text-primary'}`}>
+                  <i className={`${b.icon} text-xl`} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">{b.title}</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">{b.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </RevealSection>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* ═════════════ TESTIMONIALS ═════════════ */}
+      <RevealSection className="section-padding bg-primary-50/50">
+        <div className="container-custom">
+          <div className="text-center max-w-3xl mx-auto mb-12">
+            <span className="text-accent font-semibold text-xs uppercase tracking-widest">Testimonials</span>
+            <h2 className="heading-secondary mt-3 mb-4">Loved By Health-Conscious Families</h2>
+            <p className="text-gray-500 text-base">Real feedback from verified buyers.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-5xl mx-auto">
             {reviewsLoading
-              ? Array.from({ length: 3 }).map((_, idx) => (
-                <div key={idx} className="animate-pulse rounded-2xl border border-primary-100 bg-white p-6">
+              ? Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="animate-pulse rounded-2xl bg-white p-6 shadow-soft">
                   <div className="h-4 w-28 rounded bg-gray-200 mb-4" />
                   <div className="h-3 w-full rounded bg-gray-200 mb-2" />
                   <div className="h-3 w-5/6 rounded bg-gray-200" />
                 </div>
               ))
-              : null}
-
-            {!reviewsLoading && highlightedReviews.length
-              ? highlightedReviews.map((review, index) => (
-                <article key={review.id} className="card-lift fade-in-up rounded-2xl border border-primary-100 bg-white p-6 shadow-sm" style={{ animationDelay: `${index * 60}ms` }}>
+              : highlightedReviews.map((review, i) => (
+                <motion.article
+                  key={review.id || i}
+                  initial={{ opacity: 0, y: 16 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.06, duration: 0.4 }}
+                  whileHover={{ y: -3 }}
+                  className="rounded-2xl bg-white p-6 shadow-soft transition-shadow hover:shadow-soft-lg"
+                >
                   <div className="mb-3 flex items-center justify-between">
-                    <p className="font-semibold text-gray-900">{review.customerName || 'Verified Buyer'}</p>
-                    <span className="text-amber-400">{'★'.repeat(Math.max(1, Math.min(5, Number(review.rating || 0))))}</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary">
+                        {(review.customerName || 'V')[0].toUpperCase()}
+                      </div>
+                      <span className="text-sm font-semibold text-gray-900">{review.customerName || 'Verified Buyer'}</span>
+                    </div>
+                    <div className="flex text-amber-400 text-xs gap-0.5">
+                      {Array.from({ length: Math.min(5, Math.max(1, Number(review.rating || 0))) }).map((_, j) => (
+                        <span key={j}>&#9733;</span>
+                      ))}
+                    </div>
                   </div>
-                  <p className="text-sm leading-relaxed text-gray-600">{review.reviewText || 'Great quality and taste.'}</p>
-                </article>
+                  <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">{review.reviewText || 'Great quality and taste.'}</p>
+                </motion.article>
               ))
-              : null}
-
-            {!reviewsLoading && !highlightedReviews.length ? (
-              <div className="col-span-full rounded-2xl border border-gray-200 bg-white p-6 text-center text-gray-600">
-                No reviews yet.
-              </div>
-            ) : null}
+            }
+            {!reviewsLoading && !highlightedReviews.length && (
+              <div className="col-span-full rounded-2xl bg-white p-6 text-center text-gray-500 shadow-soft">No reviews yet.</div>
+            )}
           </div>
         </div>
-      </section>
+      </RevealSection>
 
-      {/* Trust Badges */}
-      <section className="py-14 bg-white">
-        <div className="container-custom">
-          <AnimatedSection className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" delay={60}>
-            <div className="card-lift rounded-xl border border-primary-100 bg-primary-50 p-4 text-center">
-              <i className="fas fa-leaf text-xl mb-1 text-primary" aria-hidden="true"></i>
-              <p className="font-semibold text-gray-900">100% Natural</p>
-            </div>
-            <div className="card-lift rounded-xl border border-primary-100 bg-primary-50 p-4 text-center">
-              <i className="fas fa-flask text-xl mb-1 text-primary" aria-hidden="true"></i>
-              <p className="font-semibold text-gray-900">No Artificial Additives</p>
-            </div>
-            <div className="card-lift rounded-xl border border-primary-100 bg-primary-50 p-4 text-center">
-              <i className="fas fa-box-open text-xl mb-1 text-primary" aria-hidden="true"></i>
-              <p className="font-semibold text-gray-900">Farm to Pack Freshness</p>
-            </div>
-            <div className="card-lift rounded-xl border border-primary-100 bg-primary-50 p-4 text-center">
-              <i className="fas fa-shield-alt text-xl mb-1 text-primary" aria-hidden="true"></i>
-              <p className="font-semibold text-gray-900">Ayurvedic Wellness Focus</p>
-            </div>
-          </AnimatedSection>
-        </div>
-      </section>
-
-      {/* Bulk Enquiry CTA */}
-      <section className="section-padding bg-gradient-to-br from-primary-50 to-accent-50">
-        <AnimatedSection className="container-custom text-center" delay={40}>
-          <span className="text-accent font-semibold text-sm uppercase tracking-wider">B2B & Wholesale</span>
-          <h2 className="heading-secondary mt-4 mb-6">
+      {/* ═════════════ BULK CTA ═════════════ */}
+      <RevealSection className="section-padding bg-gradient-to-br from-primary-50/80 to-accent-50/50">
+        <div className="container-custom text-center">
+          <span className="text-accent font-semibold text-xs uppercase tracking-widest">B2B & Wholesale</span>
+          <h2 className="heading-secondary mt-3 mb-5">
             Looking for <span className="text-gradient">Bulk Orders</span>?
           </h2>
-          <p className="text-gray-600 text-lg max-w-2xl mx-auto mb-8">
+          <p className="text-gray-500 text-base max-w-2xl mx-auto mb-8 leading-relaxed">
             Get special wholesale pricing for retailers, distributors, and businesses. Custom packaging available.
           </p>
-          <a href="/bulk-enquiry" className="btn-primary text-lg px-12">
+          <Link to="/bulk-enquiry" className="btn-primary text-base px-10">
             Send Bulk Enquiry
-          </a>
-        </AnimatedSection>
-      </section>
-
-      {/* Benefits Section */}
-      <section className="section-padding bg-gray-50">
-        <div className="container-custom">
-          <AnimatedSection className="text-center max-w-3xl mx-auto mb-16">
-            <h2 className="heading-secondary mb-6">
-              Why Choose <span className="text-gradient">The Awla Company</span>?
-            </h2>
-          </AnimatedSection>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center p-8 rounded-2xl bg-gradient-to-br from-primary-50 to-white hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                <i className="fas fa-leaf text-white text-2xl"></i>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">100% Natural</h3>
-              <p className="text-gray-600">
-                Pure, sun-dried Amla with no preservatives or artificial colors
-              </p>
-            </div>
-
-            <div className="text-center p-8 rounded-2xl bg-gradient-to-br from-accent-50 to-white hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-accent rounded-full flex items-center justify-center mx-auto mb-4">
-                <i className="fas fa-bolt text-white text-2xl"></i>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Fresh Processing</h3>
-              <p className="text-gray-600">
-                Processed within a day of harvest for maximum freshness and aroma
-              </p>
-            </div>
-
-            <div className="text-center p-8 rounded-2xl bg-gradient-to-br from-primary-50 to-white hover:shadow-xl transition-shadow">
-              <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-                <i className="fas fa-heart text-white text-2xl"></i>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Health Benefits</h3>
-              <p className="text-gray-600">
-                Improves gut health, relieves bloating, and boosts immunity
-              </p>
-            </div>
-          </div>
+          </Link>
         </div>
-      </section>
-
-      {/* Order Modal */}
-      {showOrderModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              {/* Modal Header */}
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Order: {selectedProduct?.name}
-                </h2>
-                <button
-                  onClick={closeModal}
-                  className="text-gray-500 hover:text-gray-700 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-
-              {/* Success Message */}
-              {orderSuccess && orderData && (
-                <div className="mb-6">
-                  <div className="bg-green-50 border border-green-200 text-green-700 px-6 py-4 rounded-lg">
-                    <div className="text-center">
-                      <div className="flex items-center justify-center mb-4">
-                        <svg className="w-8 h-8 mr-2 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                        <h3 className="text-xl font-bold text-green-700">Order Placed Successfully!</h3>
-                      </div>
-
-                      <div className="mb-4">
-                        <p className="text-sm text-gray-600 mb-2">Order Number: <span className="font-bold text-gray-800">{orderData.order?.orderNumber}</span></p>
-                        <p className="text-sm text-gray-600">Total Amount: <span className="font-bold text-gray-800">₹{orderData.order?.totalAmount}</span></p>
-                      </div>
-
-                      {/* QR Code Display */}
-                      {orderData.qrCode && (
-                        <div className="bg-white p-4 rounded-lg border-2 border-green-200 inline-block">
-                          <p className="text-sm font-semibold text-gray-700 mb-3">Scan to Pay:</p>
-                          <img
-                            src={orderData.qrCode}
-                            alt="Payment QR Code"
-                            className="w-48 h-48 mx-auto"
-                          />
-                          <p className="text-xs text-gray-500 mt-2">Scan with any UPI app to complete payment</p>
-                        </div>
-                      )}
-
-                      {/* Alternative payment info */}
-                      {!orderData.qrCode && (
-                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                          <p className="text-sm text-blue-700">Payment instructions have been sent to your email.</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Error Message */}
-              {orderError && (
-                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6">
-                  {orderError}
-                </div>
-              )}
-
-              {!orderSuccess && (
-                <form onSubmit={handleOrderSubmit} className="space-y-6">
-                  {/* Product Details */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="flex items-center space-x-4">
-                      <img
-                        src={selectedProduct?.imageUrl}
-                        alt={selectedProduct?.name}
-                        className="w-16 h-16 object-cover rounded-lg"
-                      />
-                      <div className="flex-1">
-                        <h3 className="font-semibold">{selectedProduct?.name}</h3>
-                        <p className="text-sm text-gray-600">{selectedProduct?.description}</p>
-                        <p className="text-lg font-bold text-primary">₹{selectedProduct?.price}</p>
-                      </div>
-                      <div>
-                        <label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
-                          Qty
-                        </label>
-                        <select
-                          id="quantity"
-                          name="quantity"
-                          value={orderFormData.quantity}
-                          onChange={handleOrderFormChange}
-                          className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                        >
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                            <option key={num} value={num}>{num}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Customer Information */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1">
-                        Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        id="customerName"
-                        name="customerName"
-                        value={orderFormData.customerName}
-                        onChange={handleOrderFormChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="customerEmail" className="block text-sm font-medium text-gray-700 mb-1">
-                        Email *
-                      </label>
-                      <input
-                        type="email"
-                        id="customerEmail"
-                        name="customerEmail"
-                        value={orderFormData.customerEmail}
-                        onChange={handleOrderFormChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="customerPhone" className="block text-sm font-medium text-gray-700 mb-1">
-                        Phone *
-                      </label>
-                      <input
-                        type="tel"
-                        id="customerPhone"
-                        name="customerPhone"
-                        value={orderFormData.customerPhone}
-                        onChange={handleOrderFormChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="pincode" className="block text-sm font-medium text-gray-700 mb-1">
-                        Pincode *
-                      </label>
-                      <input
-                        type="text"
-                        id="pincode"
-                        name="pincode"
-                        value={orderFormData.pincode}
-                        onChange={handleOrderFormChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Address */}
-                  <div>
-                    <label htmlFor="addressLine1" className="block text-sm font-medium text-gray-700 mb-1">
-                      Address Line 1 *
-                    </label>
-                    <input
-                      type="text"
-                      id="addressLine1"
-                      name="addressLine1"
-                      value={orderFormData.addressLine1}
-                      onChange={handleOrderFormChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label htmlFor="addressLine2" className="block text-sm font-medium text-gray-700 mb-1">
-                      Address Line 2
-                    </label>
-                    <input
-                      type="text"
-                      id="addressLine2"
-                      name="addressLine2"
-                      value={orderFormData.addressLine2}
-                      onChange={handleOrderFormChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="city" className="block text-sm font-medium text-gray-700 mb-1">
-                        City *
-                      </label>
-                      <input
-                        type="text"
-                        id="city"
-                        name="city"
-                        value={orderFormData.city}
-                        onChange={handleOrderFormChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
-
-                    <div>
-                      <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
-                        State *
-                      </label>
-                      <input
-                        type="text"
-                        id="state"
-                        name="state"
-                        value={orderFormData.state}
-                        onChange={handleOrderFormChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Order Summary */}
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <h4 className="font-semibold mb-2">Order Summary</h4>
-
-                    <div className="mb-3 rounded-lg border border-accent-200 bg-accent-50 p-3">
-                      <p className="text-xs font-semibold text-accent-700 mb-2">Apply Coupon</p>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={couponCode}
-                          onChange={(e) => {
-                            setCouponCode(e.target.value.toUpperCase());
-                            setCouponError('');
-                          }}
-                          placeholder="Try FIRST50 or SACHIN10"
-                          className="flex-1 px-3 py-2 border border-accent-300 rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent text-sm"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleApplyCoupon}
-                          disabled={couponLoading}
-                          className="px-4 py-2 bg-accent text-white rounded-lg text-sm font-semibold disabled:opacity-60"
-                        >
-                          {couponLoading ? 'Checking...' : 'Apply'}
-                        </button>
-                      </div>
-                      {appliedCoupon ? (
-                        <p className="text-xs text-green-700 mt-2 font-medium">
-                          Coupon {appliedCoupon.code} applied. You saved Rs {getDiscount()}.
-                        </p>
-                      ) : null}
-                      {couponError ? (
-                        <p className="text-xs text-red-600 mt-2">{couponError}</p>
-                      ) : null}
-                    </div>
-
-                    <div className="flex justify-between text-sm">
-                      <span>Subtotal ({orderFormData.quantity} × ₹{selectedProduct?.price})</span>
-                      <span>₹{getSubtotal()}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Shipping</span>
-                      <span>
-                        {getShipping() === 0 ? 'FREE' : '₹40'}
-                      </span>
-                    </div>
-                    {getDiscount() > 0 ? (
-                      <div className="flex justify-between text-sm text-green-700">
-                        <span>Coupon Discount ({appliedCoupon?.code})</span>
-                        <span>-₹{getDiscount()}</span>
-                      </div>
-                    ) : null}
-                    <hr className="my-2" />
-                    <div className="flex justify-between font-bold">
-                      <span>Total</span>
-                      <span>₹{getGrandTotal()}</span>
-                    </div>
-                  </div>
-
-                  {/* Submit Buttons */}
-                  <div className="flex gap-4">
-                    <button
-                      type="button"
-                      onClick={closeModal}
-                      className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={orderLoading}
-                      className="flex-1 btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {orderLoading ? (
-                        <>
-                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white inline" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          Processing...
-                        </>
-                      ) : (
-                        'Place Order'
-                      )}
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {orderSuccess && (
-                <div className="flex justify-center">
-                  <button
-                    onClick={closeModal}
-                    className="btn-primary px-8"
-                  >
-                    Close
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      </RevealSection>
     </>
   );
 };
