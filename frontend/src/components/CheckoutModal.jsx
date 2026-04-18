@@ -13,7 +13,7 @@ const slideVariants = {
 };
 
 const CheckoutModal = ({ isOpen, onClose }) => {
-  const { items, subtotal, shipping, updateQuantity, removeItem, clearCart } = useCart();
+  const { items, subtotal, shipping, updateQuantity, removeItem, clearCart, cartId } = useCart();
   const [step, setStep] = useState(0);
   const [formData, setFormData] = useState({
     customerName: '', customerEmail: '', customerPhone: '',
@@ -64,7 +64,7 @@ const CheckoutModal = ({ isOpen, onClose }) => {
     setOrderLoading(true);
     setOrderError('');
     try {
-      const payload = {
+      const checkoutPayload = {
         name: formData.customerName,
         email: formData.customerEmail,
         phone: formData.customerPhone,
@@ -73,32 +73,42 @@ const CheckoutModal = ({ isOpen, onClose }) => {
         state: formData.state,
         pincode: formData.pincode,
         country: formData.country,
-        products: items.map(item => ({
-          productId: item.productId,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity,
-          totalPrice: item.price * item.quantity,
-          weight: item.weight,
-        })),
         paymentMode: 'UPI_QR',
         couponCode: appliedCoupon?.code || '',
-        discountAmount: discount,
-        discountType: appliedCoupon?.discountType || null,
       };
-      const response = await apiService.orders.createLanding(payload);
+
+      let response;
+      if (cartId) {
+        response = await apiService.cart.checkout(cartId, checkoutPayload);
+      } else {
+        response = await apiService.orders.createLanding({
+          ...checkoutPayload,
+          products: items.map(item => ({
+            productId: item.productId,
+            slug: item.slug,
+            quantity: item.quantity,
+            weight: item.weight,
+          })),
+        });
+      }
+
       if (response.data.success) {
+        const data = response?.data?.data || {};
+        const order = data?.order || {};
+
         setOrderSuccess(true);
         setOrderData({
           order: {
             orderNumber:
-              response?.data?.data?.order?.orderNumber ||
-              response?.data?.data?.orderNumber || '',
+              order?.orderNumber ||
+              data?.orderNumber ||
+              response?.data?.orderNumber || '',
             totalAmount:
-              response?.data?.data?.order?.totalAmount ||
-              response?.data?.data?.totalAmount || 0,
+              order?.totalAmount ||
+              data?.totalAmount ||
+              response?.data?.totalAmount || 0,
           },
-          qrCode: response?.data?.data?.qrCode || response?.data?.qrCode || null,
+          qrCode: data?.qrCode || response?.data?.qrCode || null,
         });
         clearCart();
       }

@@ -16,6 +16,7 @@ type TableConfig = {
 
 const tables: Record<string, TableConfig> = {
   orders: { table: "orders", getId: (r) => r.id || randomUUID() },
+  carts: { table: "carts", getId: (r) => r.id || randomUUID() },
   adminUsers: { table: "admin_users", getId: (r) => r.id || r.email || randomUUID() },
   bulkOrders: { table: "bulk_orders", getId: (r) => r.id || randomUUID() },
   bulkCustomers: { table: "bulk_customers", getId: (r) => r.id || r.customerPhone || randomUUID() },
@@ -161,6 +162,11 @@ function ok(data?: any): ScriptResponse {
 
 export async function callPostgresAction(action: string, payload: any = {}): Promise<ScriptResponse> {
   switch (action) {
+    case "getCartById": return ok(await findBy("carts", "id", payload.id));
+    case "createCart": return ok(await create("carts", payload));
+    case "updateCart": return ok(await updateById("carts", payload.id, payload.updates || {}));
+    case "deleteCart": await deleteRows(tables.carts.table, { id: payload.id }); return ok(true);
+
     case "getAllOrders": return ok(await all("orders"));
     case "getOrderById": return ok(await findBy("orders", "id", payload.id));
     case "getOrderByNumber": return ok(await findBy("orders", "orderNumber", payload.orderNumber));
@@ -240,16 +246,68 @@ export async function callPostgresAction(action: string, payload: any = {}): Pro
       const coupons = await all("coupons");
       const coupon = coupons.find((c: any) => String(c.couponCode || "").toLowerCase() === String(payload.couponCode || "").toLowerCase());
       if (!coupon) return { success: true, valid: false, message: "Coupon not found" } as any;
+
+      if (coupon.isActive === false) {
+        return { success: true, valid: false, message: "Coupon is inactive" } as any;
+      }
+
+      const now = Date.now();
+      const validityType = String(coupon.validityType || "").toUpperCase();
+      const validUntil = String(coupon.validUntil || "").trim();
+      if ((validityType === "DATE" || validityType === "BOTH") && validUntil) {
+        const ts = Date.parse(validUntil);
+        if (!Number.isNaN(ts) && ts < now) {
+          return { success: true, valid: false, message: "Coupon has expired" } as any;
+        }
+      }
+
+      const usedCount = Number(coupon.usedCount || 0);
+      const maxUses = Number(coupon.maxUses || 0);
+      if ((validityType === "ORDER_COUNT" || validityType === "BOTH") && maxUses > 0 && usedCount >= maxUses) {
+        return { success: true, valid: false, message: "Coupon usage limit reached" } as any;
+      }
+
       const subtotal = Number(payload.subtotal || 0);
+      const minOrderAmount = Number(coupon.minOrderAmount || 0);
+      if (minOrderAmount > 0 && subtotal < minOrderAmount) {
+        return {
+          success: true,
+          valid: false,
+          message: `Minimum order amount is ₹${minOrderAmount}`,
+        } as any;
+      }
+
       const discountAmount = coupon.discountType === "PERCENTAGE"
         ? (subtotal * Number(coupon.discountValue || 0)) / 100
         : Number(coupon.discountValue || 0);
-      return { success: true, valid: true, coupon, discountAmount, message: "Coupon valid" } as any;
+
+      let normalizedDiscount = Math.max(0, Number(discountAmount || 0));
+      const maxDiscountAmount = Number(coupon.maxDiscountAmount || 0);
+      if (coupon.discountType === "PERCENTAGE" && maxDiscountAmount > 0) {
+        normalizedDiscount = Math.min(normalizedDiscount, maxDiscountAmount);
+      }
+      normalizedDiscount = Math.min(normalizedDiscount, subtotal);
+
+      return {
+        success: true,
+        valid: true,
+        coupon,
+        discountAmount: normalizedDiscount,
+        message: "Coupon valid",
+      } as any;
     }
     case "applyCoupon": {
       const coupons = await all("coupons");
       const coupon = coupons.find((c: any) => String(c.couponCode || "").toLowerCase() === String(payload.couponCode || "").toLowerCase());
       if (!coupon) return { success: false, message: "Coupon not found" };
+      if (coupon.isActive === false) return { success: false, message: "Coupon is inactive" };
+
+      const maxUses = Number(coupon.maxUses || 0);
+      const usedCount = Number(coupon.usedCount || 0);
+      if (maxUses > 0 && usedCount >= maxUses) {
+        return { success: false, message: "Coupon usage limit reached" };
+      }
+
       await updateById("coupons", coupon.id, { usedCount: Number(coupon.usedCount || 0) + 1 });
       return ok(true);
     }

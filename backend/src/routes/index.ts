@@ -10,6 +10,7 @@ import { UserRole } from "../types";
 
 // Controller imports
 import * as authController from "../controllers/authController";
+import * as cartController from "../controllers/cartController";
 import * as orderController from "../controllers/orderController";
 import * as webhookController from "../controllers/webhookController";
 import * as userController from "../controllers/userController";
@@ -87,6 +88,12 @@ router.post("/orders", orderController.createOrder);
 router.post("/orders/landing", orderController.createOrderFromLanding);
 router.get("/orders/:id/qr", orderController.getOrderQR);
 router.get("/staff", userController.getStaffList);
+
+// Cart - Public
+router.post("/cart", cartController.upsertCart);
+router.get("/cart/:id", cartController.getCartById);
+router.delete("/cart/:id", cartController.clearCart);
+router.post("/cart/:id/checkout", cartController.checkoutCart);
 
 // Reviews - Public
 router.post("/reviews", reviewController.submitReview);
