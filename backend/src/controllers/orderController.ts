@@ -8,6 +8,11 @@ import payuPayment from "../services/payuPayment";
 import { config } from "../config";
 import { AuthRequest } from "../middleware/auth";
 import {
+  buildPricedCart,
+  cartItemsToOrderProducts,
+  CartValidationError,
+} from "../services/cartPricingService";
+import {
   OrderStatus,
   PaymentStatus,
   PaymentMode,
@@ -70,6 +75,85 @@ function getOrderTimestamp(order: Partial<Order> & { updatedAt?: string }) {
   return 0;
 }
 
+function normalizeText(value: unknown): string {
+  return String(value || "").trim();
+}
+
+function parseProductsInput(rawProducts: unknown): any[] {
+  if (Array.isArray(rawProducts)) return rawProducts;
+  if (typeof rawProducts === "string") {
+    try {
+      const parsed = JSON.parse(rawProducts);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      throw new CartValidationError("Invalid products payload");
+    }
+  }
+  return [];
+}
+
+function toPricingInputItems(items: any[]): any[] {
+  return items.map((item) => ({
+    productId: item?.productId || item?.id,
+    slug: item?.slug,
+    weight: item?.weight || item?.variant || item?.variantWeight,
+    quantity: item?.quantity,
+  }));
+}
+
+function resolvePaymentMode(rawMode: unknown): PaymentMode {
+  const mode = String(rawMode || "").trim().toUpperCase();
+  if (mode === PaymentMode.PAYU) return PaymentMode.PAYU;
+  if (mode === PaymentMode.COD) return PaymentMode.COD;
+  if (mode === PaymentMode.PREPAID) return PaymentMode.PREPAID;
+  return PaymentMode.UPI_QR;
+}
+
+async function buildOrderPaymentPayload(order: Order) {
+  let qrCode: string | null = null;
+  let payuData: any = null;
+  let emailSent: boolean | null = null;
+  let emailWarning: string | null = null;
+
+  if (order.paymentMode === PaymentMode.PAYU || order.paymentMode === PaymentMode.PREPAID) {
+    payuData = {
+      paymentParams: payuPayment.generatePaymentParams({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        amount: order.totalAmount,
+        customerName: order.customerName,
+        customerEmail: order.customerEmail,
+        customerPhone: order.customerPhone,
+        productInfo: `Order ${order.orderNumber}`,
+      }),
+      paymentUrl: payuPayment.getPayUFormUrl(),
+    };
+  } else if (order.paymentMode === PaymentMode.UPI_QR && order.totalAmount > 0) {
+    qrCode = await qrGenerator.generateQRCodeBase64({
+      amount: order.totalAmount,
+      orderNumber: order.orderNumber,
+    });
+
+    try {
+      await emailService.sendOrderConfirmation(order, qrCode);
+      emailSent = true;
+    } catch (mailError) {
+      emailSent = false;
+      emailWarning =
+        "Order placed successfully, but confirmation email could not be sent right now.";
+      console.error("Email error:", mailError);
+    }
+  } else if (order.totalAmount <= 0) {
+    await googleSheets.updateOrder(order.id, {
+      paymentStatus: PaymentStatus.VERIFIED,
+      orderStatus: OrderStatus.PAID,
+      paymentReceivedAt: new Date().toISOString(),
+    });
+  }
+
+  return { qrCode, payuData, emailSent, emailWarning };
+}
+
 export async function createOrder(req: Request, res: Response): Promise<void> {
   try {
     const {
@@ -104,112 +188,55 @@ export async function createOrder(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const parsedProducts =
-      typeof products === "string" ? JSON.parse(products) : products || [];
-    const subtotal = parsedProducts.reduce(
-      (sum: number, p: any) => sum + (p.totalPrice || 0),
-      0,
+    const parsedProducts = parseProductsInput(products);
+    const priced = await buildPricedCart(
+      toPricingInputItems(parsedProducts),
+      normalizeText(couponCode),
     );
 
-    // Calculate shipping: Flat ₹40, FREE for orders >= ₹299
-    let shippingAmount = 40;
-    if (subtotal >= 299) {
-      shippingAmount = 0;
-    }
-    // Apply coupon discount when provided
-    let couponDiscount = 0;
-    let couponDiscountType: "PERCENTAGE" | "FIXED" | null = null;
-    if (couponCode) {
-      try {
-        const validation = await googleSheets.validateCoupon(String(couponCode), subtotal);
-        if (validation?.valid) {
-          couponDiscount = Number(validation.discountAmount || 0);
-          couponDiscountType = (validation.coupon?.discountType as "PERCENTAGE" | "FIXED") || null;
-        }
-      } catch (e) {
-        console.error("Coupon validation error:", e);
-      }
-    }
-
-    const totalAmount = Math.max(0, subtotal + shippingAmount - couponDiscount);
-
     const nowIso = new Date().toISOString();
-    const normalizedAddressLine1 = String(addressLine1 || address || "").trim();
-    const normalizedAddressLine2 = String(addressLine2 || "").trim();
+    const normalizedAddressLine1 = normalizeText(addressLine1 || address);
+    const normalizedAddressLine2 = normalizeText(addressLine2);
+    const normalizedPaymentMode = resolvePaymentMode(paymentMode);
 
     const order = await googleSheets.createOrder({
-      customerName,
-      customerEmail,
-      customerPhone,
+      customerName: normalizeText(customerName),
+      customerEmail: normalizeText(customerEmail),
+      customerPhone: normalizeText(customerPhone),
       addressLine1: normalizedAddressLine1,
       addressLine2: normalizedAddressLine2,
-      city,
-      state,
-      pincode,
-      country: country || "India",
-      products: parsedProducts,
-      subtotal,
-      shippingAmount,
+      city: normalizeText(city),
+      state: normalizeText(state),
+      pincode: normalizeText(pincode),
+      country: normalizeText(country) || "India",
+      products: cartItemsToOrderProducts(priced.items),
+      subtotal: priced.subtotal,
+      shippingAmount: priced.shippingAmount,
       taxAmount: 0,
-      couponCode: couponCode || "",
-      couponDiscount,
-      discountAmount: couponDiscount,
-      discountType: couponDiscount > 0 ? couponDiscountType : null,
-      totalAmount,
-      paymentMode: paymentMode || PaymentMode.UPI_QR,
+      couponCode: priced.couponCode,
+      couponDiscount: priced.discountAmount,
+      discountAmount: priced.discountAmount,
+      discountType: priced.discountType,
+      totalAmount: priced.totalAmount,
+      paymentMode: normalizedPaymentMode,
       orderStatus: OrderStatus.PENDING,
       paymentStatus: PaymentStatus.PENDING,
       orderType: OrderType.REGULAR,
-      customerNotes,
+      customerNotes: normalizeText(customerNotes),
       createdAt: nowIso,
       updatedAt: nowIso,
     });
 
-    if (couponCode && couponDiscount > 0) {
+    if (priced.couponCode && priced.discountAmount > 0) {
       try {
-        await googleSheets.applyCoupon(String(couponCode));
+        await googleSheets.applyCoupon(priced.couponCode);
       } catch (e) {
         console.error("Apply coupon error:", e);
       }
     }
 
-    let qrCode = null;
-    let payuData = null;
-    let emailSent: boolean | null = null;
-    let emailWarning: string | null = null;
-
-    if (order.paymentMode === PaymentMode.UPI_QR) {
-      qrCode = await qrGenerator.generateQRCodeBase64({
-        amount: order.totalAmount,
-        orderNumber: order.orderNumber,
-      });
-      try {
-        await emailService.sendOrderConfirmation(order, qrCode);
-        emailSent = true;
-      } catch (e) {
-        emailSent = false;
-        emailWarning =
-          "Order placed successfully, but confirmation email could not be sent right now.";
-        console.error("Email error:", e);
-      }
-    } else if (
-      order.paymentMode === PaymentMode.PREPAID ||
-      order.paymentMode === PaymentMode.PAYU
-    ) {
-      // Generate PayU payment link
-      payuData = {
-        paymentParams: payuPayment.generatePaymentParams({
-          orderId: order.id,
-          orderNumber: order.orderNumber,
-          amount: order.totalAmount,
-          customerName: order.customerName,
-          customerEmail: order.customerEmail,
-          customerPhone: order.customerPhone,
-          productInfo: `Order ${order.orderNumber}`,
-        }),
-        paymentUrl: payuPayment.getPayUFormUrl(),
-      };
-    }
+    const { qrCode, payuData, emailSent, emailWarning } =
+      await buildOrderPaymentPayload(order);
 
     res.status(201).json({
       success: true,
@@ -229,6 +256,11 @@ export async function createOrder(req: Request, res: Response): Promise<void> {
       },
     });
   } catch (error) {
+    if (error instanceof CartValidationError) {
+      res.status(error.statusCode).json({ success: false, message: error.message });
+      return;
+    }
+
     console.error("Create order error:", error);
     res.status(500).json({ success: false, message: "Failed to create order" });
   }
@@ -255,9 +287,8 @@ export async function createOrderFromLanding(
       message,
       referredBy,
       couponCode,
-      discountAmount,
-      discountType,
       paymentMode: requestedPaymentMode,
+      cartId,
     } = req.body;
 
     const normalizedAddressLine1 = String(addressLine1 || address || "").trim();
@@ -270,25 +301,31 @@ export async function createOrderFromLanding(
       return;
     }
 
-    // Parse products - landing page sends array format
-    const parsedProducts = Array.isArray(products) ? products : [];
-    const subtotal = parsedProducts.reduce(
-      (sum: number, p: any) => sum + (p.totalPrice || 0),
-      0,
-    );
+    const normalizedCartId = normalizeText(cartId);
+    let pricingItems: any[] = [];
+    let effectiveCouponCode = normalizeText(couponCode).toUpperCase();
 
-    // Calculate shipping: Flat ₹40, FREE for orders >= ₹299
-    let shippingAmount = 40;
-    if (subtotal >= 299) {
-      shippingAmount = 0;
+    if (normalizedCartId) {
+      const cart = await googleSheets.getCartById(normalizedCartId);
+      if (!cart) {
+        res.status(404).json({ success: false, message: "Cart not found" });
+        return;
+      }
+
+      const cartItems = Array.isArray(cart.items) ? cart.items : [];
+      if (cartItems.length === 0) {
+        res.status(400).json({ success: false, message: "Cart is empty" });
+        return;
+      }
+
+      pricingItems = toPricingInputItems(cartItems);
+      effectiveCouponCode = effectiveCouponCode || normalizeText(cart.couponCode).toUpperCase();
+    } else {
+      pricingItems = toPricingInputItems(parseProductsInput(products));
     }
 
-    // Apply discount if coupon was used
-    const discount = parseFloat(discountAmount) || 0;
-    const totalAmount = subtotal + shippingAmount - discount;
-
-    // Determine payment mode (default: UPI_QR, also supports PAYU)
-    const paymentMode = requestedPaymentMode === 'PAYU' ? PaymentMode.PAYU : PaymentMode.UPI_QR;
+    const priced = await buildPricedCart(pricingItems, effectiveCouponCode);
+    const paymentMode = resolvePaymentMode(requestedPaymentMode);
 
     const nowIso = new Date().toISOString();
 
@@ -302,15 +339,15 @@ export async function createOrderFromLanding(
       state,
       pincode,
       country: country || "India",
-      products: parsedProducts,
-      subtotal,
-      shippingAmount,
+      products: cartItemsToOrderProducts(priced.items),
+      subtotal: priced.subtotal,
+      shippingAmount: priced.shippingAmount,
       taxAmount: 0,
-      couponDiscount: discount,
-      couponCode: couponCode || "",
-      discountAmount: discount,
-      discountType: discountType || null,
-      totalAmount,
+      couponDiscount: priced.discountAmount,
+      couponCode: priced.couponCode,
+      discountAmount: priced.discountAmount,
+      discountType: priced.discountType,
+      totalAmount: priced.totalAmount,
       paymentMode,
       orderStatus: OrderStatus.PENDING,
       paymentStatus: PaymentStatus.PENDING,
@@ -322,38 +359,16 @@ export async function createOrderFromLanding(
     });
 
     // Apply coupon usage if coupon was used
-    if (couponCode && discount > 0) {
+    if (priced.couponCode && priced.discountAmount > 0) {
       try {
-        await googleSheets.applyCoupon(couponCode);
+        await googleSheets.applyCoupon(priced.couponCode);
       } catch (e) {
         console.error("Apply coupon error:", e);
       }
     }
 
-    let qrCode = null;
-    let payuData = null;
-
-    if (paymentMode === PaymentMode.PAYU) {
-      // Generate PayU payment params for client-side auto-submit
-      payuData = {
-        paymentParams: payuPayment.generatePaymentParams({
-          orderId: order.id,
-          orderNumber: order.orderNumber,
-          amount: order.totalAmount,
-          customerName: order.customerName,
-          customerEmail: order.customerEmail,
-          customerPhone: order.customerPhone,
-          productInfo: `Order ${order.orderNumber}`,
-        }),
-        paymentUrl: payuPayment.getPayUFormUrl(),
-      };
-    } else {
-      // Generate QR code for UPI payment (default)
-      qrCode = await qrGenerator.generateQRCodeBase64({
-        amount: order.totalAmount,
-        orderNumber: order.orderNumber,
-      });
-    }
+    const { qrCode, payuData, emailSent, emailWarning } =
+      await buildOrderPaymentPayload(order);
 
     // Add to Form_Submissions sheet for tracking
     try {
@@ -361,7 +376,7 @@ export async function createOrderFromLanding(
         name,
         email,
         phone,
-        products: parsedProducts,
+        products: cartItemsToOrderProducts(priced.items),
         address:
           [normalizedAddressLine1, normalizedAddressLine2]
             .filter(Boolean)
@@ -378,18 +393,18 @@ export async function createOrderFromLanding(
       console.error("Form submission entry error:", e);
     }
 
-    // Try to send confirmation email (for UPI orders)
-    let emailSent: boolean | null = null;
-    let emailWarning: string | null = null;
-    if (paymentMode !== PaymentMode.PAYU) {
-      try {
-        await emailService.sendOrderConfirmation(order, qrCode || '');
-        emailSent = true;
-      } catch (e) {
-        emailSent = false;
-        emailWarning = "Order placed successfully, but confirmation email could not be sent right now.";
-        console.error("Email error:", e);
-      }
+    if (normalizedCartId) {
+      await googleSheets.updateCart(normalizedCartId, {
+        items: [],
+        itemCount: 0,
+        subtotal: 0,
+        shippingAmount: 0,
+        discountAmount: 0,
+        discountType: null,
+        couponCode: "",
+        totalAmount: 0,
+        updatedAt: new Date().toISOString(),
+      });
     }
 
     res.status(201).json({
@@ -407,6 +422,11 @@ export async function createOrderFromLanding(
       },
     });
   } catch (error) {
+    if (error instanceof CartValidationError) {
+      res.status(error.statusCode).json({ success: false, message: error.message });
+      return;
+    }
+
     console.error("Landing order error:", error);
     res.status(500).json({ success: false, message: "Failed to submit order" });
   }
@@ -490,7 +510,10 @@ export async function getOrderById(
     }
 
     let qrCode = null;
-    if (order.paymentStatus !== PaymentStatus.VERIFIED) {
+    if (
+      order.paymentStatus !== PaymentStatus.VERIFIED &&
+      Number(order.totalAmount || 0) > 0
+    ) {
       qrCode = await qrGenerator.generateQRCodeBase64({
         amount: order.totalAmount,
         orderNumber: order.orderNumber,
@@ -715,6 +738,14 @@ export async function getOrderQR(req: Request, res: Response): Promise<void> {
     const order = await googleSheets.getOrderById(req.params.id);
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
+      return;
+    }
+
+    if (Number(order.totalAmount || 0) <= 0) {
+      res.status(400).json({
+        success: false,
+        message: "No QR required for zero-value orders",
+      });
       return;
     }
 
@@ -980,6 +1011,14 @@ export async function shareQR(req: AuthRequest, res: Response): Promise<void> {
     }
 
     if (method === "email") {
+      if (Number(order.totalAmount || 0) <= 0) {
+        res.status(400).json({
+          success: false,
+          message: "No QR required for zero-value orders",
+        });
+        return;
+      }
+
       const qrCode = await qrGenerator.generateQRCodeBase64({
         amount: order.totalAmount,
         orderNumber: order.orderNumber,
@@ -1301,6 +1340,14 @@ export async function processBulkUPIPayment(req: Request, res: Response): Promis
     const bulkOrder = await googleSheets.getBulkOrderById(id);
     if (!bulkOrder) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
+      return;
+    }
+
+    if (Number(bulkOrder.totalAmount || 0) <= 0) {
+      res.status(400).json({
+        success: false,
+        message: "No UPI QR required for zero-value orders",
+      });
       return;
     }
 

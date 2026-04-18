@@ -3,6 +3,41 @@ import { Order } from "../types";
 import path from "path";
 import fs from "fs";
 
+type InvoiceLine = {
+  name: string;
+  variant: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+};
+
+function toMoney(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  return Math.round((parsed + Number.EPSILON) * 100) / 100;
+}
+
+function formatCurrency(amount: number): string {
+  return `Rs. ${toMoney(amount).toFixed(2)}`;
+}
+
+function normalizeInvoiceLines(products: any[]): InvoiceLine[] {
+  if (!Array.isArray(products)) return [];
+
+  return products
+    .map((product) => {
+      const name = String(product?.name || product?.productName || "Product").trim();
+      const variant = String(product?.variant || product?.weight || product?.size || "").trim();
+      const quantity = Math.max(1, Number.parseInt(String(product?.quantity || product?.qty || 1), 10) || 1);
+      const unitPrice = toMoney(product?.unitPrice ?? product?.price ?? 0);
+      const providedTotal = toMoney(product?.totalPrice ?? product?.total ?? 0);
+      const totalPrice = providedTotal > 0 ? providedTotal : toMoney(unitPrice * quantity);
+
+      return { name, variant, quantity, unitPrice, totalPrice };
+    })
+    .filter((line) => line.quantity > 0 && (line.totalPrice > 0 || line.unitPrice > 0));
+}
+
 export async function generateInvoicePDF(order: Order): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ size: "A4", margin: 40 });
@@ -17,15 +52,21 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
     const lightGray = "#666666";
     const bgLight = "#f8f9fa";
     const pageWidth = 515;
+    const lines = normalizeInvoiceLines(order.products || []);
 
-    // Format currency without special symbols
-    const fmt = (amount: number) => `Rs. ${amount.toFixed(2)}`;
+    const calculatedSubtotal = toMoney(
+      lines.reduce((sum, line) => sum + toMoney(line.totalPrice), 0),
+    );
+    const subtotal = calculatedSubtotal > 0 ? calculatedSubtotal : toMoney(order.subtotal || 0);
+    const shippingAmount = toMoney(order.shippingAmount || 0);
+    const taxAmount = toMoney(order.taxAmount || 0);
+    const discountAmount = toMoney(order.discountAmount ?? order.couponDiscount ?? 0);
+    const computedTotal = toMoney(subtotal + shippingAmount + taxAmount - discountAmount);
+    const totalAmount = toMoney(order.totalAmount || computedTotal);
 
     // ===== HEADER SECTION =====
-    // Green header bar
     doc.rect(0, 0, 595, 100).fill(primaryColor);
 
-    // Try to add logo
     const logoPath = path.join(
       __dirname,
       "../../../awla-landing/assets/logo.png",
@@ -34,17 +75,15 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
       try {
         doc.image(logoPath, 40, 20, { width: 60 });
       } catch (e) {
-        // Logo load failed, continue without it
+        // ignore logo load failures
       }
     }
 
-    // Company name - white on green (positioned after logo)
     doc.fontSize(24).fillColor("#ffffff").font("Helvetica-Bold");
     doc.text("The Awla Company", 110, 30);
     doc.fontSize(10).fillColor("#e0e0e0").font("Helvetica");
     doc.text("Premium Amla Products | Royal Way to Stay Healthy", 110, 58);
 
-    // INVOICE badge on right
     doc.fontSize(12).fillColor("#ffffff").font("Helvetica-Bold");
     doc.text("INVOICE", 450, 35, { width: 100, align: "right" });
 
@@ -79,10 +118,9 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
 
     // ===== BILLING DETAILS =====
     const billY = 200;
-    const lineHeight = 14; // Consistent line height
-    const maxAddrWidth = 240; // Width for address text
+    const lineHeight = 14;
+    const maxAddrWidth = 240;
 
-    // Bill To section
     doc.fontSize(10).fillColor(primaryColor).font("Helvetica-Bold");
     doc.text("BILL TO", 55, billY);
     doc
@@ -100,12 +138,10 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
     billTextY += lineHeight + 4;
     doc.fontSize(9).fillColor(lightGray).font("Helvetica");
 
-    // Address line 1 - may wrap
     const addr1 = String(order.addressLine1 || "");
     doc.text(addr1, 55, billTextY, { width: maxAddrWidth, lineGap: 2 });
     billTextY += addr1.length > 40 ? lineHeight * 2 : lineHeight;
 
-    // Address line 2 (optional)
     if (order.addressLine2) {
       doc.text(String(order.addressLine2), 55, billTextY, {
         width: maxAddrWidth,
@@ -113,24 +149,20 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
       billTextY += lineHeight;
     }
 
-    // City, State - Pincode
     const cityLine = `${order.city || ""}, ${order.state || ""} - ${order.pincode || ""
       }`;
     doc.text(cityLine, 55, billTextY, { width: maxAddrWidth });
     billTextY += lineHeight;
 
-    // Phone
     doc.text(`Phone: ${String(order.customerPhone || "")}`, 55, billTextY, {
       width: maxAddrWidth,
     });
     billTextY += lineHeight;
 
-    // Email
     doc.text(`Email: ${String(order.customerEmail || "")}`, 55, billTextY, {
       width: maxAddrWidth,
     });
 
-    // Ship To section
     doc.fontSize(10).fillColor(primaryColor).font("Helvetica-Bold");
     doc.text("SHIP TO", 320, billY);
     doc
@@ -148,11 +180,9 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
     shipTextY += lineHeight + 4;
     doc.fontSize(9).fillColor(lightGray).font("Helvetica");
 
-    // Address line 1
     doc.text(addr1, 320, shipTextY, { width: maxAddrWidth, lineGap: 2 });
     shipTextY += addr1.length > 40 ? lineHeight * 2 : lineHeight;
 
-    // Address line 2
     if (order.addressLine2) {
       doc.text(String(order.addressLine2), 320, shipTextY, {
         width: maxAddrWidth,
@@ -160,65 +190,61 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
       shipTextY += lineHeight;
     }
 
-    // City, State - Pincode
     doc.text(cityLine, 320, shipTextY, { width: maxAddrWidth });
 
-    // ===== PRODUCTS TABLE =====
+    const drawTableHeader = (y: number) => {
+      doc.rect(40, y, pageWidth, 28).fill(primaryColor);
+      doc.fontSize(10).fillColor("#ffffff").font("Helvetica-Bold");
+      doc.text("#", 52, y + 8, { width: 25 });
+      doc.text("Product Description", 80, y + 8, { width: 200 });
+      doc.text("Qty", 300, y + 8, { width: 50, align: "center" });
+      doc.text("Unit Price", 360, y + 8, { width: 80, align: "right" });
+      doc.text("Total", 460, y + 8, { width: 80, align: "right" });
+    };
+
     const tableY = 330;
+    drawTableHeader(tableY);
 
-    // Table header
-    doc.rect(40, tableY, pageWidth, 28).fill(primaryColor);
-    doc.fontSize(10).fillColor("#ffffff").font("Helvetica-Bold");
-    doc.text("#", 52, tableY + 8, { width: 25 });
-    doc.text("Product Description", 80, tableY + 8, { width: 200 });
-    doc.text("Qty", 300, tableY + 8, { width: 50, align: "center" });
-    doc.text("Unit Price", 360, tableY + 8, { width: 80, align: "right" });
-    doc.text("Total", 460, tableY + 8, { width: 80, align: "right" });
-
-    // Table rows
     let rowY = tableY + 28;
-    const products = Array.isArray(order.products) ? order.products : [];
 
-    if (products.length === 0) {
-      // Show a row indicating no products
+    if (lines.length === 0) {
       doc.rect(40, rowY, pageWidth, 30).fill("#fafafa");
       doc.fontSize(10).fillColor(lightGray).font("Helvetica");
       doc.text("No products", 80, rowY + 10, { width: 400 });
       rowY += 30;
     } else {
-      products.forEach((product: any, index: number) => {
+      lines.forEach((line, index) => {
+        if (rowY + 36 > 700) {
+          doc.addPage();
+          rowY = 60;
+          drawTableHeader(rowY);
+          rowY += 28;
+        }
+
         const isEven = index % 2 === 0;
         if (isEven) {
           doc.rect(40, rowY, pageWidth, 30).fill("#fafafa");
         }
 
-        // Handle different product data formats
-        const productName = product.name || product.productName || "Product";
-        const productVariant = product.variant || product.size || "";
-        const qty = product.quantity || product.qty || 1;
-        const unitPrice = product.unitPrice || product.price || 0;
-        const totalPrice =
-          product.totalPrice || product.total || qty * unitPrice || 0;
-
         doc.fontSize(10).fillColor(darkGray).font("Helvetica");
         doc.text((index + 1).toString(), 52, rowY + 10, { width: 25 });
         doc
           .font("Helvetica-Bold")
-          .text(String(productName), 80, rowY + 6, { width: 200 });
-        if (productVariant) {
+          .text(String(line.name), 80, rowY + 6, { width: 200 });
+        if (line.variant) {
           doc
             .font("Helvetica")
             .fillColor(lightGray)
-            .text(String(productVariant), 80, rowY + 18, { width: 200 });
+            .text(String(line.variant), 80, rowY + 18, { width: 200 });
         }
         doc
           .fillColor(darkGray)
           .font("Helvetica")
-          .text(String(qty), 300, rowY + 10, { width: 50, align: "center" });
-        doc.text(fmt(unitPrice), 360, rowY + 10, { width: 80, align: "right" });
+          .text(String(line.quantity), 300, rowY + 10, { width: 50, align: "center" });
+        doc.text(formatCurrency(line.unitPrice), 360, rowY + 10, { width: 80, align: "right" });
         doc
           .font("Helvetica-Bold")
-          .text(fmt(totalPrice), 460, rowY + 10, { width: 80, align: "right" });
+          .text(formatCurrency(line.totalPrice), 460, rowY + 10, { width: 80, align: "right" });
 
         rowY += 30;
       });
@@ -228,15 +254,22 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
     doc.moveTo(40, rowY).lineTo(555, rowY).stroke("#e0e0e0");
 
     // ===== TOTALS SECTION =====
-    const totalsY = rowY + 20;
     const totalsX = 360;
+    const hasDiscount = discountAmount > 0;
+    const hasTax = taxAmount > 0;
+    const totalsBoxHeight = 95 + (hasDiscount ? 20 : 0) + (hasTax ? 20 : 0);
+    if (rowY + totalsBoxHeight + 170 > 760) {
+      doc.addPage();
+      rowY = 60;
+    }
+    const totalsY = rowY + 20;
 
     // Totals box
-    doc.rect(totalsX - 10, totalsY - 5, 205, 95).fill(bgLight);
+    doc.rect(totalsX - 10, totalsY - 5, 205, totalsBoxHeight).fill(bgLight);
 
     doc.fontSize(10).fillColor(lightGray).font("Helvetica");
     doc.text("Subtotal:", totalsX, totalsY + 5, { width: 100 });
-    doc.fillColor(darkGray).text(fmt(order.subtotal || 0), 460, totalsY + 5, {
+    doc.fillColor(darkGray).text(formatCurrency(subtotal), 460, totalsY + 5, {
       width: 80,
       align: "right",
     });
@@ -247,42 +280,58 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
     doc
       .fillColor(darkGray)
       .text(
-        order.shippingAmount === 0 ? "FREE" : fmt(order.shippingAmount || 0),
+        shippingAmount === 0 ? "FREE" : formatCurrency(shippingAmount),
         460,
         totalsY + 25,
         { width: 80, align: "right" },
       );
 
-    if (order.taxAmount && order.taxAmount > 0) {
+    let totalsCursorY = totalsY + 45;
+
+    if (hasDiscount) {
       doc
         .fillColor(lightGray)
-        .text("Tax:", totalsX, totalsY + 45, { width: 100 });
-      doc.fillColor(darkGray).text(fmt(order.taxAmount), 460, totalsY + 45, {
+        .text("Discount:", totalsX, totalsCursorY, { width: 100 });
+      doc
+        .fillColor("#28a745")
+        .text(`- ${formatCurrency(discountAmount)}`, 460, totalsCursorY, {
+          width: 80,
+          align: "right",
+        });
+      totalsCursorY += 20;
+    }
+
+    if (hasTax) {
+      doc
+        .fillColor(lightGray)
+        .text("Tax:", totalsX, totalsCursorY, { width: 100 });
+      doc.fillColor(darkGray).text(formatCurrency(taxAmount), 460, totalsCursorY, {
         width: 80,
         align: "right",
       });
+      totalsCursorY += 20;
     }
 
     // Total line with green background
-    doc.rect(totalsX - 10, totalsY + 55, 205, 30).fill(primaryColor);
+    doc.rect(totalsX - 10, totalsCursorY, 205, 30).fill(primaryColor);
     // Auto-adjust font size based on total amount
-    const totalStr = fmt(order.totalAmount || 0);
+    const totalStr = formatCurrency(totalAmount);
     const totalFontSize =
       totalStr.length > 12 ? 11 : totalStr.length > 10 ? 12 : 14;
     doc.fontSize(totalFontSize).fillColor("#ffffff").font("Helvetica-Bold");
-    doc.text("TOTAL:", totalsX, totalsY + 65, { width: 100 });
-    doc.text(totalStr, 460, totalsY + 65, { width: 80, align: "right" });
+    doc.text("TOTAL:", totalsX, totalsCursorY + 10, { width: 100 });
+    doc.text(totalStr, 460, totalsCursorY + 10, { width: 80, align: "right" });
 
     // ===== PAYMENT INFO =====
     if (order.paymentTransactionId) {
-      const payY = totalsY + 110;
+      const payY = totalsCursorY + 55;
       doc.fontSize(9).fillColor(lightGray).font("Helvetica");
       doc.text(`Transaction ID: ${order.paymentTransactionId}`, 40, payY);
     }
 
     // ===== TRACKING INFO =====
     if (order.trackingId) {
-      const trackY = totalsY + 130;
+      const trackY = totalsCursorY + 75;
       doc.rect(40, trackY, pageWidth, 45).fill(bgLight).stroke("#e0e0e0");
       doc.fontSize(10).fillColor(primaryColor).font("Helvetica-Bold");
       doc.text("SHIPPING DETAILS", 55, trackY + 8);

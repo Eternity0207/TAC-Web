@@ -123,6 +123,45 @@ export interface Order {
   updatedAt: string;
 }
 
+export interface CartItemInput {
+  productId?: string;
+  slug?: string;
+  weight?: string;
+  variant?: string;
+  quantity: number;
+}
+
+export interface CartItem {
+  key: string;
+  productId: string;
+  slug?: string;
+  name: string;
+  imageUrl?: string;
+  weight?: string;
+  variant?: string;
+  quantity: number;
+  unitPrice: number;
+  mrp: number;
+  totalPrice: number;
+}
+
+export interface Cart {
+  id: string;
+  customerEmail?: string;
+  customerPhone?: string;
+  couponCode?: string;
+  discountType?: "PERCENTAGE" | "FIXED" | null;
+  discountAmount: number;
+  subtotal: number;
+  shippingAmount: number;
+  totalAmount: number;
+  items: CartItem[];
+  itemCount: number;
+  currency: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SalesTarget {
   skuId: string;
   skuName: string;

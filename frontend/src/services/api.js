@@ -44,6 +44,14 @@ export const apiService = {
     getQR: (id) => API.get(`/orders/${id}/qr`),
   },
 
+  // Cart (Public)
+  cart: {
+    upsert: (cartData) => API.post('/cart', cartData),
+    getById: (id) => API.get(`/cart/${id}`),
+    clear: (id) => API.delete(`/cart/${id}`),
+    checkout: (id, checkoutData) => API.post(`/cart/${id}/checkout`, checkoutData),
+  },
+
   // Reviews
   reviews: {
     create: (reviewData) => API.post('/reviews', reviewData),

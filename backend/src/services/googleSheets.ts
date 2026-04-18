@@ -1,5 +1,6 @@
 import { config } from "../config";
 import {
+  Cart,
   Order,
   OrderStatus,
   PaymentStatus,
@@ -16,6 +17,32 @@ import {
 async function callAppsScript(action: string, payload: any = {}) {
   const { callPostgresAction } = await import("../repos/googleSheetsRepo");
   return await callPostgresAction(action, payload);
+}
+
+export async function createCart(data: Partial<Cart>): Promise<Cart> {
+  const result = await callAppsScript("createCart", data);
+  if (!result.success) throw new Error(result.message);
+  return result.data;
+}
+
+export async function getCartById(id: string): Promise<Cart | null> {
+  const result = await callAppsScript("getCartById", { id });
+  if (!result.success) return null;
+  return result.data;
+}
+
+export async function updateCart(
+  id: string,
+  updates: Partial<Cart>,
+): Promise<Cart | null> {
+  const result = await callAppsScript("updateCart", { id, updates });
+  if (!result.success) return null;
+  return result.data;
+}
+
+export async function deleteCart(id: string): Promise<boolean> {
+  const result = await callAppsScript("deleteCart", { id });
+  return !!result.success;
 }
 
 export async function createOrder(data: Partial<Order>): Promise<Order> {
@@ -428,6 +455,10 @@ export async function updateWholesaleSKU(
 }
 
 export default {
+  createCart,
+  getCartById,
+  updateCart,
+  deleteCart,
   createOrder,
   getAllOrders,
   getOrderById,
