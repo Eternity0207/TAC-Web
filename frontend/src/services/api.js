@@ -56,6 +56,8 @@ export const apiService = {
   reviews: {
     create: (reviewData) => API.post('/reviews', reviewData),
     getAll: () => API.get('/reviews'),
+    getVideos: () => API.get('/reviews/videos'),
+    verifyPurchase: (payload) => API.post('/reviews/verify-purchase', payload),
     getPhoto: (id) => API.get(`/reviews/photo/${id}`),
   },
 

@@ -44,7 +44,17 @@ const ReviewSection = ({
   maxItems,
 }) => {
   const productReviews = useMemo(() => {
-    const filtered = reviews.filter((review) => doesReviewMatchProduct(review?.productName, productName));
+    const filtered = reviews
+      .filter((review) => doesReviewMatchProduct(review?.productName, productName))
+      .sort((a, b) => {
+        const videoDiff = Number(Boolean(b?.videoUrl || b?.driveLink)) - Number(Boolean(a?.videoUrl || a?.driveLink));
+        if (videoDiff) return videoDiff;
+
+        const dateA = new Date(a?.createdAt || 0).getTime();
+        const dateB = new Date(b?.createdAt || 0).getTime();
+        return dateB - dateA;
+      });
+
     if (typeof maxItems === 'number') return filtered.slice(0, maxItems);
     return filtered;
   }, [reviews, productName, maxItems]);

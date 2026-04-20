@@ -5,6 +5,8 @@ import { motion, useInView } from 'framer-motion';
 import { useRef } from 'react';
 import { apiService } from '../services/api';
 import ProductCard, { ProductCardSkeleton } from '../components/ProductCard';
+import ReviewCard from '../components/ReviewCard';
+import { mergeUniqueReviews } from '../lib/reviewUtils';
 
 /* ── Helpers ── */
 const normalizeProduct = (product) => {
@@ -58,16 +60,23 @@ const fadeUp = {
 /* ── Trust items ── */
 const TRUST_ITEMS = [
   { icon: 'fas fa-leaf', label: '100% Natural' },
-  { icon: 'fas fa-flask', label: 'No Additives' },
+  { icon: 'fas fa-flask', label: 'Zero Preservatives' },
   { icon: 'fas fa-box-open', label: 'Farm to Pack' },
   { icon: 'fas fa-shield-alt', label: 'Ayurvedic Wellness' },
 ];
 
 /* ── Benefits ── */
 const BENEFITS = [
-  { icon: 'fas fa-leaf', color: 'primary', title: '100% Natural', desc: 'Pure, sun-dried Amla with no preservatives or artificial colors.' },
+  { icon: 'fas fa-leaf', color: 'primary', title: '100% Natural', desc: 'Zero preservatives with no artificial flavour, colour, or fragrance.' },
   { icon: 'fas fa-bolt', color: 'accent', title: 'Same-Day Processing', desc: 'Processed within a day of harvest for maximum freshness and aroma.' },
-  { icon: 'fas fa-heart', color: 'primary', title: 'Health Benefits', desc: 'Improves gut health, relieves bloating, and boosts immunity naturally.' },
+  { icon: 'fas fa-heart', color: 'primary', title: 'Nutritional Benefits', desc: '100% pure natural Indian superfruit nutrition for daily wellness.' },
+];
+
+const HERO_HIGHLIGHTS = [
+  'Zero Preservatives',
+  'No Artificial Flavour, Colour or Fragrance',
+  '100% Pure Natural Indian Superfruit',
+  'Maximum Nutritional Benefits',
 ];
 
 /* ── Main Component ── */
@@ -82,16 +91,18 @@ const Home = () => {
     const fetchData = async () => {
       setProductsLoading(true);
       try {
-        const [productRes, reviewRes] = await Promise.all([
+        const [productRes, reviewRes, videoRes] = await Promise.all([
           apiService.products.getPublic(),
           apiService.reviews.getAll(),
+          apiService.reviews.getVideos().catch(() => ({ data: { data: [] } })),
         ]);
         const items = Array.isArray(productRes?.data?.data) ? productRes.data.data : [];
         const reviewData = Array.isArray(reviewRes?.data?.data) ? reviewRes.data.data : [];
+        const videoData = Array.isArray(videoRes?.data?.data) ? videoRes.data.data : [];
         setProducts(
           items.map(normalizeProduct).filter(p => p.id && p.name).sort((a, b) => a.displayOrder - b.displayOrder)
         );
-        setReviews(reviewData);
+        setReviews(mergeUniqueReviews(reviewData, videoData));
       } catch {
         setProductsError('Unable to load products right now.');
       } finally {
@@ -107,7 +118,17 @@ const Home = () => {
   const highlightedReviews = useMemo(() => {
     return reviews
       .filter(r => Number(r?.rating || 0) >= 4)
-      .sort((a, b) => Number(b?.rating || 0) - Number(a?.rating || 0))
+      .sort((a, b) => {
+        const videoDiff = Number(Boolean(b?.videoUrl || b?.driveLink)) - Number(Boolean(a?.videoUrl || a?.driveLink));
+        if (videoDiff) return videoDiff;
+
+        const ratingDiff = Number(b?.rating || 0) - Number(a?.rating || 0);
+        if (ratingDiff) return ratingDiff;
+
+        const dateA = new Date(a?.createdAt || 0).getTime();
+        const dateB = new Date(b?.createdAt || 0).getTime();
+        return dateB - dateA;
+      })
       .slice(0, 6);
   }, [reviews]);
 
@@ -148,10 +169,29 @@ const Home = () => {
               </motion.div>
 
               {/* Offer banner */}
-              <motion.div variants={fadeUp} className="inline-flex items-center gap-3 rounded-2xl bg-accent/90 backdrop-blur-sm px-5 py-3 shadow-glow-accent">
-                <span className="text-xs uppercase tracking-widest font-bold text-white/80">Limited Offer</span>
-                <span className="text-lg font-extrabold">15% OFF</span>
-                <span className="text-sm font-medium opacity-90">Use FIRST50</span>
+              <motion.div variants={fadeUp} className="space-y-3">
+                <div className="inline-flex items-center gap-3 rounded-2xl bg-accent/90 backdrop-blur-sm px-5 py-3 shadow-glow-accent">
+                  <span className="text-xs uppercase tracking-widest font-bold text-white/80">Limited Offer</span>
+                  <span className="text-lg font-extrabold">15% OFF</span>
+                  <span className="text-sm font-medium opacity-90">Use FIRST50</span>
+                </div>
+
+                <div className="flex flex-wrap gap-2.5">
+                  {HERO_HIGHLIGHTS.map((highlight) => (
+                    <span
+                      key={highlight}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 text-[11px] font-semibold text-white/90 backdrop-blur-sm"
+                    >
+                      <i className="fas fa-check-circle text-accent-200 text-[10px]" aria-hidden="true" />
+                      {highlight}
+                    </span>
+                  ))}
+
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-900/55 px-3.5 py-1.5 text-[11px] font-semibold text-white backdrop-blur-sm">
+                    <i className="fas fa-cow text-accent-200 text-[10px]" aria-hidden="true" />
+                    Rs 5 from every order goes to cow fodder and animal welfare
+                  </span>
+                </div>
               </motion.div>
 
               <motion.h1 variants={fadeUp} className="font-display text-4xl md:text-5xl lg:text-[3.5rem] font-bold leading-[1.12] tracking-tight">
@@ -335,30 +375,17 @@ const Home = () => {
                 </div>
               ))
               : highlightedReviews.map((review, i) => (
-                <motion.article
+                <motion.div
                   key={review.id || i}
                   initial={{ opacity: 0, y: 16 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.06, duration: 0.4 }}
                   whileHover={{ y: -3 }}
-                  className="rounded-2xl bg-white p-6 shadow-soft transition-shadow hover:shadow-soft-lg"
+                  className="h-full"
                 >
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary">
-                        {(review.customerName || 'V')[0].toUpperCase()}
-                      </div>
-                      <span className="text-sm font-semibold text-gray-900">{review.customerName || 'Verified Buyer'}</span>
-                    </div>
-                    <div className="flex text-amber-400 text-xs gap-0.5">
-                      {Array.from({ length: Math.min(5, Math.max(1, Number(review.rating || 0))) }).map((_, j) => (
-                        <span key={j}>&#9733;</span>
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-sm text-gray-600 leading-relaxed line-clamp-3">{review.reviewText || 'Great quality and taste.'}</p>
-                </motion.article>
+                  <ReviewCard review={review} index={i} compact />
+                </motion.div>
               ))
             }
             {!reviewsLoading && !highlightedReviews.length && (

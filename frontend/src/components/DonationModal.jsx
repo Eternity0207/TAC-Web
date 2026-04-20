@@ -8,9 +8,9 @@ const DonationModal = ({ isOpen, onClose }) => {
           <i className="fas fa-cow" aria-hidden="true"></i>
         </div>
 
-        <h3 className="mb-2 text-xl font-semibold text-gray-900">Small order, big impact</h3>
+        <h3 className="mb-2 text-xl font-semibold text-gray-900">Pure nutrition, real impact</h3>
         <p className="text-sm leading-relaxed text-gray-600">
-          Rs 5 from every order supports cow fodder and animal welfare.
+          Zero preservatives, no artificial flavour, colour, or fragrance. Plus, Rs 5 from every order supports cow fodder and animal welfare.
         </p>
 
         <div className="mt-6 flex flex-wrap gap-3">

@@ -98,6 +98,8 @@ router.post("/cart/:id/checkout", cartController.checkoutCart);
 // Reviews - Public
 router.post("/reviews", reviewController.submitReview);
 router.get("/reviews", reviewController.getApprovedReviews);
+router.get("/reviews/videos", reviewController.getVideoReviews);
+router.post("/reviews/verify-purchase", reviewController.verifyPurchaseForReview);
 router.get("/reviews/photo/:id", reviewController.getReviewPhoto);
 
 // Coupons - Public
@@ -338,12 +340,21 @@ router.put("/bulk-enquiries/:id/status", authMiddleware, bulkOrderController.upd
 // router.post("/bulk-enquiries", authMiddleware, bulkOrderController.createBulkEnquiry);
 
 // Video Reviews & WhatsApp Reviews
-router.get("/video-reviews", authMiddleware, reviewController.getVideoReviews);
-router.get("/whatsapp-reviews", authMiddleware, reviewController.getWhatsAppReviews);
+router.get("/video-reviews", authMiddleware, launchController.getVideoReviews);
+router.post("/video-reviews", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), launchController.createVideoReview);
+router.put("/video-reviews/:id", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), launchController.updateVideoReview);
+router.delete("/video-reviews/:id", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), launchController.deleteVideoReview);
+
+router.get("/whatsapp-reviews", authMiddleware, launchController.getWhatsAppReviews);
+router.post("/whatsapp-reviews", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), launchController.createWhatsAppReview);
+router.put("/whatsapp-reviews/:id", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), launchController.updateWhatsAppReview);
+router.delete("/whatsapp-reviews/:id", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), launchController.deleteWhatsAppReview);
 
 // Production Videos
-// router.get("/production-videos", authMiddleware, productController.getProductionVideos);
-// router.post("/production-videos", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), productController.createProductionVideo);
+router.get("/production-videos", authMiddleware, launchController.getProductionVideos);
+router.post("/production-videos", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), launchController.createProductionVideo);
+router.put("/production-videos/:id", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), launchController.updateProductionVideo);
+router.delete("/production-videos/:id", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), launchController.deleteProductionVideo);
 
 // Staff Management
 router.get("/staff/list", authMiddleware, userController.getStaffList);

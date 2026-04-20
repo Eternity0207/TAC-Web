@@ -10,6 +10,11 @@ export interface Review {
     photo?: string;
     photoMimeType?: string;
     photoUrl?: string;
+    videoUrl?: string;
+    driveLink?: string;
+    orderNumber?: string;
+    verifiedOrderNumber?: string;
+    purchaseVerified?: boolean;
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
     createdAt: string;
     approvedAt: string;

@@ -1,6 +1,6 @@
 import { Helmet } from 'react-helmet-async';
 import { Link, useParams } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { apiService } from '../services/api';
 import { useCart } from '../context/CartContext';
@@ -8,6 +8,8 @@ import DiscountBadge from '../components/DiscountBadge';
 import PriceDisplay, { getDiscountMeta } from '../components/PriceDisplay';
 import ReviewSection from '../components/ReviewSection';
 import QuantitySelector from '../components/QuantitySelector';
+import ReviewSubmissionForm from '../components/ReviewSubmissionForm';
+import { mergeUniqueReviews } from '../lib/reviewUtils';
 
 const ProductDetailSkeleton = () => (
   <div className="section-padding bg-cream">
@@ -42,6 +44,25 @@ const ProductDetail = () => {
   const [quantity, setQuantity] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
 
+  const fetchReviews = useCallback(async () => {
+    setReviewsLoading(true);
+    setReviewsError('');
+    try {
+      const [reviewRes, videoRes] = await Promise.all([
+        apiService.reviews.getAll(),
+        apiService.reviews.getVideos().catch(() => ({ data: { data: [] } })),
+      ]);
+
+      const writtenReviews = Array.isArray(reviewRes?.data?.data) ? reviewRes.data.data : [];
+      const videoReviews = Array.isArray(videoRes?.data?.data) ? videoRes.data.data : [];
+      setReviews(mergeUniqueReviews(writtenReviews, videoReviews));
+    } catch {
+      setReviewsError('Unable to load reviews.');
+    } finally {
+      setReviewsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const fetchProduct = async () => {
       setLoading(true);
@@ -59,18 +80,8 @@ const ProductDetail = () => {
   }, [slug]);
 
   useEffect(() => {
-    const fetchReviews = async () => {
-      setReviewsLoading(true);
-      setReviewsError('');
-      try {
-        const res = await apiService.reviews.getAll();
-        setReviews(Array.isArray(res?.data?.data) ? res.data.data : []);
-      } catch {
-        setReviewsError('Unable to load reviews.');
-      } finally { setReviewsLoading(false); }
-    };
     fetchReviews();
-  }, []);
+  }, [fetchReviews]);
 
   const variants = Array.isArray(product?.variants) ? product.variants : [];
   const selectedVariant = variants[selectedVariantIdx] || {};
@@ -267,7 +278,7 @@ const ProductDetail = () => {
                   <i className="fas fa-shield-alt text-accent" />
                   <div>
                     <p className="text-xs font-semibold text-gray-800">100% Natural</p>
-                    <p className="text-[11px] text-gray-500">No additives</p>
+                    <p className="text-[11px] text-gray-500">Zero preservatives</p>
                   </div>
                 </div>
               </div>
@@ -281,6 +292,13 @@ const ProductDetail = () => {
                 title={`Customer Reviews (${reviewStats.reviewCount})`}
                 maxItems={5}
               />
+
+              <div className="mt-6">
+                <ReviewSubmissionForm
+                  productName={product.name}
+                  onSubmitted={fetchReviews}
+                />
+              </div>
             </motion.div>
           </div>
         </div>

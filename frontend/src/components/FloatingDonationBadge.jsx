@@ -10,12 +10,14 @@ const FloatingDonationBadge = ({ onClick }) => {
     <button
       type="button"
       onClick={onClick}
-      className={`fixed right-5 z-40 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-primary shadow-soft-lg ring-1 ring-primary-100 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-soft-xl active:scale-[0.97] ${bottomClass}`}
+      className={`fixed right-4 z-40 inline-flex max-w-[18rem] items-center gap-2 rounded-2xl bg-white px-3 py-2.5 text-primary shadow-soft-lg ring-1 ring-primary-100 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:shadow-soft-xl active:scale-[0.97] ${bottomClass}`}
       aria-label="Open donation information"
     >
-      <i className="fas fa-cow text-primary" aria-hidden="true" />
-      <span className="hidden sm:inline">Rs 5 goes to animal welfare</span>
-      <span className="sm:hidden">Rs 5 for welfare</span>
+      <i className="fas fa-cow text-primary text-base" aria-hidden="true" />
+      <span className="text-left leading-tight">
+        <span className="block text-[11px] font-bold sm:text-xs">Rs 5/order supports animal welfare</span>
+        <span className="block text-[10px] font-medium text-primary-700/90 sm:text-[11px]">Zero preservatives • 100% pure natural fruit</span>
+      </span>
     </button>
   );
 };

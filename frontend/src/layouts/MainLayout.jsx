@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import CartDrawer from '../components/CartDrawer';
+import DonationBanner from '../components/DonationBanner';
 import DonationModal from '../components/DonationModal';
 import FloatingDonationBadge from '../components/FloatingDonationBadge';
 import { useCart } from '../context/CartContext';
@@ -32,6 +33,7 @@ const MainLayout = ({ children }) => {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
+      <DonationBanner />
       <main className="flex-grow pt-20">
         {children}
       </main>
