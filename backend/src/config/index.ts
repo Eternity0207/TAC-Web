@@ -13,6 +13,11 @@ function parseBooleanEnv(value: string | undefined): boolean | undefined {
 
 const smtpPort = parseInt(process.env.SMTP_PORT || '587', 10);
 const smtpSecure = parseBooleanEnv(process.env.SMTP_SECURE) ?? smtpPort === 465;
+const googleReviewsCacheTtlRaw = parseInt(process.env.GOOGLE_REVIEWS_CACHE_TTL_SECONDS || '10800', 10);
+const googleReviewsCacheTtlSeconds = Number.isFinite(googleReviewsCacheTtlRaw) && googleReviewsCacheTtlRaw > 0
+    ? googleReviewsCacheTtlRaw
+    : 10800;
+const googleReviewsPlaceId = process.env.GOOGLE_REVIEWS_PLACE_ID || 'ChIJ2YJsUgTJbTkRcbpJIhs_Tz0';
 
 export const config = {
     port: parseInt(process.env.PORT || '3003', 10),
@@ -63,4 +68,13 @@ export const config = {
             'https://theawlacompany.com',
             'https://admin.theawlacompany.com'
         ],
+
+    googleReviews: {
+        apiKey: process.env.GOOGLE_MAPS_API_KEY || '',
+        placeId: googleReviewsPlaceId,
+        writeReviewUrl: process.env.GOOGLE_REVIEW_WRITE_URL || `https://search.google.com/local/writereview?placeid=${googleReviewsPlaceId}`,
+        cacheTtlSeconds: googleReviewsCacheTtlSeconds,
+        language: process.env.GOOGLE_REVIEWS_LANGUAGE || 'en',
+        reviewsSort: process.env.GOOGLE_REVIEWS_SORT || 'newest',
+    },
 };

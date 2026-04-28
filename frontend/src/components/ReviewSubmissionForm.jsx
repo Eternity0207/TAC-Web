@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiService } from '../services/api';
 import { normalizeVideoUrl } from '../lib/reviewUtils';
+import { GOOGLE_WRITE_REVIEW_URL } from '../lib/googleReviewConfig';
 
 const MAX_PHOTOS = 3;
 const MAX_PHOTO_SIZE_MB = 2;
@@ -48,6 +49,8 @@ const ReviewSubmissionForm = ({ productName = '', onSubmitted }) => {
   const [verifyingPurchase, setVerifyingPurchase] = useState(false);
   const [purchaseVerification, setPurchaseVerification] = useState(INITIAL_VERIFICATION);
   const [status, setStatus] = useState({ kind: 'idle', message: '' });
+  const [lastSubmittedReviewText, setLastSubmittedReviewText] = useState('');
+  const [googleShareHint, setGoogleShareHint] = useState('');
 
   useEffect(() => {
     setForm((prev) => ({ ...prev, productName: productName || prev.productName }));
@@ -230,6 +233,8 @@ const ReviewSubmissionForm = ({ productName = '', onSubmitted }) => {
         throw new Error(response?.data?.message || 'Unable to submit review right now.');
       }
 
+      setLastSubmittedReviewText(reviewText);
+      setGoogleShareHint('');
       setForm({ ...INITIAL_FORM, productName });
       setPhotos([]);
       setPurchaseVerification(INITIAL_VERIFICATION);
@@ -252,6 +257,23 @@ const ReviewSubmissionForm = ({ productName = '', onSubmitted }) => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const shareReviewOnGoogle = async () => {
+    const reviewText = String(lastSubmittedReviewText || '').trim();
+
+    try {
+      if (reviewText && navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(reviewText);
+        setGoogleShareHint('Your review text is copied. Paste it on Google review page.');
+      } else {
+        setGoogleShareHint('Opening Google review page.');
+      }
+    } catch {
+      setGoogleShareHint('Opening Google review page. You can write the same feedback there.');
+    }
+
+    window.open(GOOGLE_WRITE_REVIEW_URL, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -442,7 +464,22 @@ const ReviewSubmissionForm = ({ productName = '', onSubmitted }) => {
         ) : null}
 
         {status.kind === 'success' ? (
-          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{status.message}</p>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3 text-sm text-emerald-700">
+            <p>{status.message}</p>
+            <p className="mt-2 text-xs text-emerald-800/90">
+              This review is saved to our website review system. Google reviews can only be posted by you on Google.
+            </p>
+            <button
+              type="button"
+              onClick={shareReviewOnGoogle}
+              className="mt-3 inline-flex items-center rounded-full bg-emerald-700 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-800"
+            >
+              Post Same Review on Google
+            </button>
+            {googleShareHint ? (
+              <p className="mt-2 text-xs text-emerald-800">{googleShareHint}</p>
+            ) : null}
+          </div>
         ) : null}
 
         <button

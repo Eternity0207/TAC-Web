@@ -98,6 +98,7 @@ router.post("/cart/:id/checkout", cartController.checkoutCart);
 // Reviews - Public
 router.post("/reviews", reviewController.submitReview);
 router.get("/reviews", reviewController.getApprovedReviews);
+router.get("/reviews/google", reviewController.getGoogleReviews);
 router.get("/reviews/videos", reviewController.getVideoReviews);
 router.post("/reviews/verify-purchase", reviewController.verifyPurchaseForReview);
 router.get("/reviews/photo/:id", reviewController.getReviewPhoto);

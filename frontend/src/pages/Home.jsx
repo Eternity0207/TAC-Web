@@ -6,6 +6,7 @@ import { useRef } from 'react';
 import { apiService } from '../services/api';
 import ProductCard, { ProductCardSkeleton } from '../components/ProductCard';
 import ReviewCard from '../components/ReviewCard';
+import GoogleReviewsSection from '../components/GoogleReviewsSection';
 import { mergeUniqueReviews } from '../lib/reviewUtils';
 
 /* ── Helpers ── */
@@ -394,6 +395,8 @@ const Home = () => {
           </div>
         </div>
       </RevealSection>
+
+      <GoogleReviewsSection />
 
       {/* ═════════════ BULK CTA ═════════════ */}
       <RevealSection className="section-padding bg-gradient-to-br from-primary-50/80 to-accent-50/50">

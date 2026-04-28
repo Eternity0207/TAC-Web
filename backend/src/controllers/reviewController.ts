@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import * as reviewsService from '../services/reviewsService';
 import googleSheets from '../services/googleSheets';
+import googlePlacesReviewsService from '../services/googlePlacesReviewsService';
 import { AuthRequest } from '../middleware/auth';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -370,6 +371,31 @@ export async function getApprovedReviews(req: Request, res: Response): Promise<v
     } catch (error) {
         console.error('Get approved reviews error:', error);
         res.status(500).json({ success: false, message: 'Failed to get reviews' });
+    }
+}
+
+// Public: Get Google business reviews (cached)
+export async function getGoogleReviews(req: Request, res: Response): Promise<void> {
+    try {
+        const forceRefresh = String(req.query?.refresh || '').trim().toLowerCase() === 'true';
+        const response = await googlePlacesReviewsService.getGoogleReviews(forceRefresh);
+        res.json({
+            success: true,
+            data: response.data,
+            meta: response.meta,
+        });
+    } catch (error: any) {
+        console.error('Get Google reviews error:', error);
+        const message = String(error?.message || 'Failed to fetch Google reviews');
+        const isConfigError = message.includes('GOOGLE_MAPS_API_KEY') || message.includes('GOOGLE_REVIEWS_PLACE_ID');
+
+        res.status(isConfigError ? 500 : 502).json({
+            success: false,
+            message: isConfigError
+                ? 'Google reviews are not configured on server'
+                : 'Failed to fetch Google reviews',
+            error: message,
+        });
     }
 }
 
