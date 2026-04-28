@@ -80,6 +80,11 @@ export async function updateOrder(
   return result.data;
 }
 
+export async function deleteOrder(id: string): Promise<boolean> {
+  const result = await callAppsScript("deleteOrder", { id });
+  return !!result.success;
+}
+
 export async function assignInvoiceNumber(id: string): Promise<Order | null> {
   const orders = await getAllOrders();
   const invoiceCount = orders.filter((o) => o.invoiceNumber).length;
@@ -464,6 +469,7 @@ export default {
   getOrderById,
   getOrderByNumber,
   updateOrder,
+  deleteOrder,
   assignInvoiceNumber,
   getAdminByEmail,
   createAdminUser,

@@ -708,6 +708,53 @@ export async function cancelOrder(
   }
 }
 
+// Delete cancelled order permanently
+export async function deleteCancelledOrder(
+  req: AuthRequest,
+  res: Response,
+): Promise<void> {
+  try {
+    const order = await googleSheets.getOrderById(req.params.id);
+    if (!order) {
+      res.status(404).json({ success: false, message: "Order not found" });
+      return;
+    }
+
+    const orderStatus = String(order.orderStatus || "").trim().toUpperCase();
+    if (orderStatus !== OrderStatus.CANCELLED) {
+      res.status(400).json({
+        success: false,
+        message: "Only cancelled orders can be deleted",
+      });
+      return;
+    }
+
+    const deleted = await googleSheets.deleteOrder(req.params.id);
+    if (!deleted) {
+      res.status(500).json({
+        success: false,
+        message: "Failed to delete order",
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      message: "Cancelled order deleted successfully",
+      data: {
+        id: order.id,
+        orderNumber: order.orderNumber,
+      },
+    });
+  } catch (error) {
+    console.error("Delete cancelled order error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete order",
+    });
+  }
+}
+
 // Mark as delivered (even without payment)
 export async function markDelivered(
   req: AuthRequest,

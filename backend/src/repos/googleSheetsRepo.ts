@@ -172,6 +172,7 @@ export async function callPostgresAction(action: string, payload: any = {}): Pro
     case "getOrderByNumber": return ok(await findBy("orders", "orderNumber", payload.orderNumber));
     case "createOrder": return ok(await create("orders", payload));
     case "updateOrder": return ok(await updateById("orders", payload.id, payload.updates || {}));
+    case "deleteOrder": await deleteRows(tables.orders.table, { id: payload.id }); return ok(true);
 
     case "getAdminByEmail": return ok(await findBy("adminUsers", "email", payload.email));
     case "getAllAdminUsers": return ok(await all("adminUsers"));

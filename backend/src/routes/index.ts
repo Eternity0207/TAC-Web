@@ -156,7 +156,7 @@ router.post("/orders/:id/email-invoice", authMiddleware, orderController.emailIn
 router.post("/orders/:id/share-qr", authMiddleware, orderController.shareQR);
 router.post("/orders/:id/upload-screenshot", authMiddleware, orderController.uploadPaymentScreenshot);
 router.post("/orders/:id/upload-delivery-receipt", authMiddleware, orderController.uploadDeliveryReceipt);
-router.delete("/orders/:id", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), orderController.cancelOrder);
+router.delete("/orders/:id", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), orderController.deleteCancelledOrder);
 
 // User Management
 router.get("/users", authMiddleware, userController.getAllUsers);
