@@ -20,7 +20,7 @@ const DonationModal = ({ isOpen, onClose }) => {
           <button
             type="button"
             onClick={() => {
-              window.open('/blog', '_self');
+              window.open('/donation', '_self');
               onClose();
             }}
             className="flex-1 rounded-full border border-gray-300 px-5 py-3 text-sm font-semibold text-gray-700 transition-all duration-200 ease-in-out hover:border-primary hover:text-primary active:scale-95"

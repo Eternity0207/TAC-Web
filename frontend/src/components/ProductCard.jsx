@@ -8,6 +8,7 @@ import { getDiscountMeta } from './PriceDisplay';
 import { ReviewPreview } from './ReviewSection';
 import Badge from './Badge';
 import SkeletonCard from './SkeletonCard';
+import { getProductStockInfo } from '../lib/productStockUtils';
 
 const ProductCard = ({
   product,
@@ -21,6 +22,7 @@ const ProductCard = ({
   const selectedVariant = variants[selectedVariantIdx] || {};
   const price = Number(selectedVariant?.price || product?.price || 0);
   const mrp = Number(selectedVariant?.mrp || product?.mrp || price);
+  const stockInfo = getProductStockInfo(product, selectedVariant);
   const discount = getDiscountMeta({ mrp, price, variants: [selectedVariant] });
   const isPopular = Boolean(product?.isFeatured || product?.isPopular);
   const { addItem, lastAdded } = useCart();
@@ -30,7 +32,7 @@ const ProductCard = ({
   const isLastAdded = lastAdded === cartKey;
 
   const handleAddToCart = () => {
-    if (!product) return;
+    if (!product || stockInfo.isOutOfStock) return;
     addItem(product, selectedVariant);
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 1500);
@@ -87,22 +89,42 @@ const ProductCard = ({
 
         <ReviewPreview avgRating={avgRating} reviewCount={reviewCount} />
 
+        {stockInfo.shouldShow ? (
+          <p
+            className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
+              stockInfo.isOutOfStock
+                ? 'bg-red-50 text-red-700 ring-1 ring-red-100'
+                : 'bg-amber-50 text-amber-800 ring-1 ring-amber-100'
+            }`}
+          >
+            {stockInfo.label}
+          </p>
+        ) : null}
+
         {/* Variant Selector */}
         {variants.length > 1 && (
           <div className="flex flex-wrap gap-1.5">
-            {variants.map((v, i) => (
+            {variants.map((v, i) => {
+              const variantStock = getProductStockInfo(product, v);
+              const variantOut = variantStock.isOutOfStock;
+              return (
               <button
                 key={v.weight || i}
                 onClick={() => setSelectedVariantIdx(i)}
+                disabled={variantOut}
                 className={`rounded-full px-3 py-1 text-xs font-medium transition-all ${
-                  i === selectedVariantIdx
+                  variantOut
+                    ? 'cursor-not-allowed border border-red-100 bg-red-50 text-red-500'
+                    : i === selectedVariantIdx
                     ? 'bg-primary text-white shadow-sm'
                     : 'border border-gray-200 bg-gray-50 text-gray-600 hover:border-primary hover:text-primary'
                 }`}
               >
                 {v.weight || `Option ${i + 1}`}
+                {variantOut ? ' • Out' : ''}
               </button>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -112,13 +134,18 @@ const ProductCard = ({
           <motion.button
             whileTap={{ scale: 0.92 }}
             onClick={handleAddToCart}
+            disabled={stockInfo.isOutOfStock}
             className={`rounded-full px-5 py-2.5 text-sm font-semibold transition-all duration-300 ${
-              justAdded || isLastAdded
+              stockInfo.isOutOfStock
+                ? 'cursor-not-allowed bg-gray-300 text-gray-600'
+                : justAdded || isLastAdded
                 ? 'bg-green-500 text-white shadow-md'
                 : 'bg-primary text-white shadow-soft hover:bg-primary-800 hover:shadow-soft-lg'
             }`}
           >
-            {justAdded || isLastAdded ? (
+            {stockInfo.isOutOfStock ? (
+              'Out of Stock'
+            ) : justAdded || isLastAdded ? (
               <span className="flex items-center gap-1">
                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />

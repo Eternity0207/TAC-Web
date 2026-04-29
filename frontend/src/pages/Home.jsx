@@ -28,6 +28,8 @@ const normalizeProduct = (product) => {
     reviewCount: Number(product?.reviewCount || 0),
     displayOrder: Number(product?.displayOrder || 999),
     isFeatured: product?.isFeatured,
+    stockStatus: product?.stockStatus || '',
+    stockQuantity: product?.stockQuantity,
   };
 };
 

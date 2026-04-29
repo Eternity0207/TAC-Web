@@ -13,6 +13,8 @@ export interface ProductVariant {
     mrp: number;
     weightValue?: number;
     weightUnit?: string;
+    stockStatus?: string;
+    stockQuantity?: number;
 }
 
 export interface Product {
@@ -29,6 +31,8 @@ export interface Product {
     isFeatured: boolean;
     isActive: boolean;
     displayOrder: number;
+    stockStatus?: string;
+    stockQuantity?: number;
     createdAt: string;
     updatedAt: string;
 }

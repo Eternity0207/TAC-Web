@@ -10,6 +10,7 @@ import ReviewSection from '../components/ReviewSection';
 import QuantitySelector from '../components/QuantitySelector';
 import ReviewSubmissionForm from '../components/ReviewSubmissionForm';
 import { mergeUniqueReviews } from '../lib/reviewUtils';
+import { getProductStockInfo } from '../lib/productStockUtils';
 
 const ProductDetailSkeleton = () => (
   <div className="section-padding bg-cream">
@@ -87,6 +88,11 @@ const ProductDetail = () => {
   const selectedVariant = variants[selectedVariantIdx] || {};
   const price = Number(selectedVariant?.price || product?.price || 0);
   const mrp = Number(selectedVariant?.mrp || product?.mrp || price);
+  const stockInfo = getProductStockInfo(product, selectedVariant);
+  const maxSelectableQty =
+    stockInfo.quantityLeft !== null && stockInfo.quantityLeft > 0
+      ? stockInfo.quantityLeft
+      : 10;
   const discount = getDiscountMeta({ mrp, price, variants: [selectedVariant] });
 
   const cartKey = `${product?.id || product?.slug}-${selectedVariant?.weight || 'default'}`;
@@ -107,12 +113,19 @@ const ProductDetail = () => {
   }, [product, reviews]);
 
   const handleAddToCart = () => {
-    if (!product) return;
+    if (!product || stockInfo.isOutOfStock) return;
     addItem(product, selectedVariant, quantity);
     setJustAdded(true);
     setTimeout(() => setJustAdded(false), 1500);
     setQuantity(1);
   };
+
+  useEffect(() => {
+    if (stockInfo.isOutOfStock) return;
+    if (stockInfo.quantityLeft !== null && quantity > stockInfo.quantityLeft) {
+      setQuantity(stockInfo.quantityLeft);
+    }
+  }, [quantity, stockInfo.isOutOfStock, stockInfo.quantityLeft]);
 
   if (loading) return <ProductDetailSkeleton />;
 
@@ -197,25 +210,44 @@ const ProductDetail = () => {
               {/* Price */}
               <PriceDisplay price={price} mrp={mrp} variants={[selectedVariant]} className="mb-5" />
 
+              {stockInfo.shouldShow ? (
+                <div
+                  className={`mb-5 inline-flex rounded-full px-4 py-1.5 text-sm font-semibold ${
+                    stockInfo.isOutOfStock
+                      ? 'bg-red-50 text-red-700 ring-1 ring-red-100'
+                      : 'bg-amber-50 text-amber-800 ring-1 ring-amber-100'
+                  }`}
+                >
+                  {stockInfo.label}
+                </div>
+              ) : null}
+
               {/* Variant selector */}
               {variants.length > 1 && (
                 <div className="mb-5">
                   <p className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Select Size</p>
                   <div className="flex flex-wrap gap-2">
-                    {variants.map((v, i) => (
-                      <button
-                        key={v.weight || i}
-                        onClick={() => { setSelectedVariantIdx(i); setQuantity(1); }}
-                        className={`rounded-full px-5 py-2 text-sm font-medium transition-all duration-200 ${
-                          i === selectedVariantIdx
-                            ? 'bg-primary text-white shadow-md shadow-primary/20'
-                            : 'border border-gray-200 bg-white text-gray-700 hover:border-primary hover:text-primary'
-                        }`}
-                      >
-                        {v.weight || `Option ${i + 1}`}
-                        <span className="ml-1.5 text-xs opacity-70">₹{Number(v.price || 0)}</span>
-                      </button>
-                    ))}
+                    {variants.map((v, i) => {
+                      const variantStock = getProductStockInfo(product, v);
+                      return (
+                        <button
+                          key={v.weight || i}
+                          onClick={() => { setSelectedVariantIdx(i); setQuantity(1); }}
+                          disabled={variantStock.isOutOfStock}
+                          className={`rounded-full px-5 py-2 text-sm font-medium transition-all duration-200 ${
+                            variantStock.isOutOfStock
+                              ? 'cursor-not-allowed border border-red-100 bg-red-50 text-red-500'
+                              : i === selectedVariantIdx
+                              ? 'bg-primary text-white shadow-md shadow-primary/20'
+                              : 'border border-gray-200 bg-white text-gray-700 hover:border-primary hover:text-primary'
+                          }`}
+                        >
+                          {v.weight || `Option ${i + 1}`}
+                          <span className="ml-1.5 text-xs opacity-70">₹{Number(v.price || 0)}</span>
+                          {variantStock.isOutOfStock ? <span className="ml-1.5 text-xs opacity-100">• Out</span> : null}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -224,7 +256,12 @@ const ProductDetail = () => {
               <div className="mb-6 flex flex-wrap items-center gap-4">
                 <div>
                   <p className="mb-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Quantity</p>
-                  <QuantitySelector quantity={quantity} onChange={setQuantity} />
+                  <QuantitySelector
+                    quantity={quantity}
+                    onChange={setQuantity}
+                    max={maxSelectableQty}
+                    disabled={stockInfo.isOutOfStock}
+                  />
                 </div>
 
                 <div className="flex-1 min-w-[160px]">
@@ -232,13 +269,18 @@ const ProductDetail = () => {
                   <motion.button
                     whileTap={{ scale: 0.95 }}
                     onClick={handleAddToCart}
+                    disabled={stockInfo.isOutOfStock}
                     className={`w-full rounded-full py-3 px-6 font-semibold text-white transition-all duration-300 ${
-                      justAdded || isLastAdded
+                      stockInfo.isOutOfStock
+                        ? 'cursor-not-allowed bg-gray-300 text-gray-600 shadow-none'
+                        : justAdded || isLastAdded
                         ? 'bg-green-500 shadow-md'
                         : 'bg-primary shadow-soft hover:bg-primary-800 hover:shadow-soft-lg'
                     }`}
                   >
-                    {justAdded || isLastAdded ? (
+                    {stockInfo.isOutOfStock ? (
+                      <span className="flex items-center justify-center gap-2">Out of Stock</span>
+                    ) : justAdded || isLastAdded ? (
                       <span className="flex items-center justify-center gap-2">
                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />

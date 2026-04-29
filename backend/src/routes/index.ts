@@ -29,6 +29,7 @@ import * as credentialController from "../controllers/credentialController";
 import * as tagController from "../controllers/tagController";
 import * as productController from "../controllers/productController";
 import * as socialMediaController from "../controllers/socialMediaController";
+import * as donationController from "../controllers/donationController";
 
 const router = Router();
 
@@ -111,6 +112,9 @@ router.get("/coupons/public", couponController.getValidCoupons);
 // Products - Public
 router.get("/products/public", productController.getPublicProducts);
 router.get("/products/public/:slug", productController.getProductBySlug);
+
+// Donations - Public
+router.get("/donation/summary", donationController.getDonationSummary);
 
 // Bulk Enquiry - Public (no auth required)
 router.post("/enquiry/bulk", bulkOrderController.createBulkEnquiry);

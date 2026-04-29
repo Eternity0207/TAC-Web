@@ -11,6 +11,7 @@ import Team from './pages/Team';
 import Careers from './pages/Careers';
 import BulkEnquiry from './pages/BulkEnquiry';
 import GlobalLoader from './components/GlobalLoader';
+import Donation from './pages/Donation';
 
 function App() {
   const [showLoader, setShowLoader] = useState(true);
@@ -36,6 +37,7 @@ function App() {
               <Route path="/blog" element={<Blog />} />
               <Route path="/team" element={<Team />} />
               <Route path="/careers" element={<Careers />} />
+              <Route path="/donation" element={<Donation />} />
               <Route path="/bulk-enquiry" element={<BulkEnquiry />} />
             </Routes>
           </MainLayout>

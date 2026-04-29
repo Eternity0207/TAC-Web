@@ -59,6 +59,16 @@ function parsePrice(raw: unknown): number {
   return toTwoDecimals(parsed);
 }
 
+function parseStockQuantity(raw: unknown): number | null {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(0, Math.floor(parsed));
+}
+
+function normalizeStockStatus(raw: unknown): string {
+  return String(raw || "").trim().toUpperCase();
+}
+
 function parseItemsInput(rawItems: unknown): CartItemInput[] {
   if (!Array.isArray(rawItems)) {
     throw new CartValidationError("Cart items must be an array");
@@ -119,6 +129,31 @@ function findVariant(
   return matched || null;
 }
 
+function resolveStockState(
+  product: Record<string, any>,
+  variant: Record<string, any> | null,
+): {
+  isOutOfStock: boolean;
+  quantityLeft: number | null;
+} {
+  const status = normalizeStockStatus(variant?.stockStatus || product?.stockStatus);
+  const quantityLeft = parseStockQuantity(
+    variant?.stockQuantity ??
+      variant?.inventoryQuantity ??
+      variant?.remainingQuantity ??
+      product?.stockQuantity ??
+      product?.inventoryQuantity ??
+      product?.remainingQuantity,
+  );
+
+  const isOutOfStock =
+    status === "OUT_OF_STOCK" ||
+    status === "DEPLETED" ||
+    (quantityLeft !== null && quantityLeft <= 0);
+
+  return { isOutOfStock, quantityLeft };
+}
+
 function lineKey(productId: string, weight: string): string {
   const suffix = weight ? normalizeLower(weight) : "default";
   return `${productId}-${suffix}`;
@@ -174,6 +209,16 @@ export async function buildPricedCart(
       );
     }
 
+    const stockState = resolveStockState(product, variant);
+    if (stockState.isOutOfStock) {
+      throw new CartValidationError(`Line ${i + 1}: ${product.name} is out of stock`);
+    }
+    if (stockState.quantityLeft !== null && item.quantity > stockState.quantityLeft) {
+      throw new CartValidationError(
+        `Line ${i + 1}: only ${stockState.quantityLeft} left for ${product.name}`,
+      );
+    }
+
     const unitPrice = parsePrice(variant.price);
     if (unitPrice <= 0) {
       throw new CartValidationError(`Line ${i + 1}: invalid price for ${product.name}`);
@@ -189,6 +234,11 @@ export async function buildPricedCart(
       if (nextQty > MAX_QTY_PER_LINE) {
         throw new CartValidationError(
           `Line ${i + 1}: combined quantity exceeds ${MAX_QTY_PER_LINE}`,
+        );
+      }
+      if (stockState.quantityLeft !== null && nextQty > stockState.quantityLeft) {
+        throw new CartValidationError(
+          `Line ${i + 1}: only ${stockState.quantityLeft} left for ${product.name}`,
         );
       }
       existing.quantity = nextQty;

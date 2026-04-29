@@ -62,6 +62,11 @@ export const apiService = {
     getPhoto: (id) => API.get(`/reviews/photo/${id}`),
   },
 
+  // Donation
+  donation: {
+    getSummary: () => API.get('/donation/summary'),
+  },
+
   // Authentication
   auth: {
     login: (credentials) => API.post('/auth/login', credentials),
