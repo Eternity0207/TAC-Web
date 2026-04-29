@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import * as reviewsService from '../services/reviewsService';
 import googleSheets from '../services/googleSheets';
-import googlePlacesReviewsService from '../services/googlePlacesReviewsService';
+import googlePlacesReviewsService, { type GoogleReviewsPayload } from '../services/googlePlacesReviewsService';
 import { AuthRequest } from '../middleware/auth';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -379,10 +379,17 @@ export async function getGoogleReviews(req: Request, res: Response): Promise<voi
     try {
         const forceRefresh = String(req.query?.refresh || '').trim().toLowerCase() === 'true';
         const response = await googlePlacesReviewsService.getGoogleReviews(forceRefresh);
+        const payload: Partial<GoogleReviewsPayload> = response.data || {};
+
         res.json({
             success: true,
-            data: response.data,
-            meta: response.meta,
+            data: {
+                businessName: payload.businessName,
+                rating: payload.rating,
+                userRatingsTotal: payload.userRatingsTotal,
+                reviews: payload.reviews,
+                writeReviewUrl: payload.writeReviewUrl,
+            },
         });
     } catch (error: any) {
         console.error('Get Google reviews error:', error);
@@ -392,9 +399,8 @@ export async function getGoogleReviews(req: Request, res: Response): Promise<voi
         res.status(isConfigError ? 500 : 502).json({
             success: false,
             message: isConfigError
-                ? 'Google reviews are not configured on server'
+                ? 'Google reviews are temporarily unavailable'
                 : 'Failed to fetch Google reviews',
-            error: message,
         });
     }
 }
