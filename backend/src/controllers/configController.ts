@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import googleSheets from '../services/googleSheets';
+import supabase from "../services/supabase";
 import bulkPricingService from '../services/bulkPricingService';
 import {
     getResolvedBulkPricingConfig,
@@ -66,7 +66,7 @@ export async function updateBulkPricingConfig(req: AuthRequest, res: Response): 
                 bulkPricingService.calculateSellingPrice(config.mrp, config.margin10kg),
         }));
 
-        await googleSheets.updateConfig('bulk_pricing', processedConfigs);
+        await supabase.updateConfig('bulk_pricing', processedConfigs);
 
         res.json({
             success: true,
@@ -118,7 +118,7 @@ export async function updatePackagingConfig(req: AuthRequest, res: Response): Pr
             return;
         }
 
-        await googleSheets.updateConfig('packaging', packagingOptions);
+        await supabase.updateConfig('packaging', packagingOptions);
 
         res.json({
             success: true,
@@ -136,7 +136,7 @@ export async function updatePackagingConfig(req: AuthRequest, res: Response): Pr
  */
 export async function getSKUs(req: AuthRequest, res: Response): Promise<void> {
     try {
-        const skus = await googleSheets.getSKUs();
+        const skus = await supabase.getSKUs();
 
         res.json({
             success: true,
@@ -181,7 +181,7 @@ export async function updateSKUPricing(req: AuthRequest, res: Response): Promise
             }
         }
 
-        const updated = await googleSheets.updateSKUPricing(skuId, updates);
+        const updated = await supabase.updateSKUPricing(skuId, updates);
 
         if (!updated) {
             res.status(404).json({ success: false, message: 'SKU not found' });
@@ -246,7 +246,7 @@ export async function getWholesaleSKUs(req: AuthRequest, res: Response): Promise
             return;
         }
 
-        const skus = await googleSheets.getWholesaleSKUs();
+        const skus = await supabase.getWholesaleSKUs();
 
         res.json({
             success: true,
@@ -277,7 +277,7 @@ export async function updateWholesaleSKU(req: AuthRequest, res: Response): Promi
         if (wholesalePrice !== undefined) updates.wholesalePrice = parseFloat(wholesalePrice);
         if (minQuantity !== undefined) updates.minQuantity = parseInt(minQuantity);
 
-        const updated = await googleSheets.updateWholesaleSKU(skuId, updates);
+        const updated = await supabase.updateWholesaleSKU(skuId, updates);
 
         if (!updated) {
             res.status(404).json({ success: false, message: 'SKU not found' });
@@ -302,7 +302,7 @@ export async function updateWholesaleSKU(req: AuthRequest, res: Response): Promi
 // Get general configuration
 export async function getConfig(req: AuthRequest, res: Response): Promise<void> {
     try {
-        const config = await googleSheets.getConfig('general');
+        const config = await supabase.getConfig('general');
 
         res.json({
             success: true,
@@ -324,7 +324,7 @@ export async function updateConfig(req: AuthRequest, res: Response): Promise<voi
     try {
         const configData = req.body;
 
-        const updatedConfig = await googleSheets.updateConfig('general', configData);
+        const updatedConfig = await supabase.updateConfig('general', configData);
 
         res.json({
             success: true,
@@ -351,7 +351,7 @@ export async function updateSettings(req: AuthRequest, res: Response): Promise<v
 export async function getCommissionSettings(req: AuthRequest, res: Response): Promise<void> {
     try {
         // Use config method with commission type
-        const commissionSettings = await googleSheets.getConfig('commission');
+        const commissionSettings = await supabase.getConfig('commission');
 
         res.json({
             success: true,
@@ -373,7 +373,7 @@ export async function updateCommissionSettings(req: AuthRequest, res: Response):
     try {
         const commissionData = req.body;
 
-        const updatedSettings = await googleSheets.updateConfig('commission', commissionData);
+        const updatedSettings = await supabase.updateConfig('commission', commissionData);
 
         res.json({
             success: true,

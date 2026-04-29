@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import googleSheets from "../services/googleSheets";
+import supabase from "../services/supabase";
 import emailService from "../services/emailService";
 import payuPayment from "../services/payuPayment";
 import invoiceGenerator from "../services/invoiceGenerator";
@@ -25,13 +25,13 @@ export async function n8nPaymentWebhook(
       return;
     }
 
-    const order = await googleSheets.getOrderByNumber(orderRef);
+    const order = await supabase.getOrderByNumber(orderRef);
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
       return;
     }
 
-    const updated = await googleSheets.updateOrder(order.id, {
+    const updated = await supabase.updateOrder(order.id, {
       paymentStatus: PaymentStatus.RECEIVED,
       orderStatus: OrderStatus.PAID,
       paymentTransactionId: transactionId,
@@ -74,7 +74,7 @@ export async function payuPaymentCallback(
       return;
     }
 
-    const order = await googleSheets.getOrderByNumber(result.orderNumber);
+    const order = await supabase.getOrderByNumber(result.orderNumber);
     if (!order) {
       const failureUrl = `${config.frontendUrl
         }/payment-status?status=failed&message=${encodeURIComponent(
@@ -85,7 +85,7 @@ export async function payuPaymentCallback(
     }
 
     // Update order with payment details
-    const updated = await googleSheets.updateOrder(order.id, {
+    const updated = await supabase.updateOrder(order.id, {
       paymentStatus: PaymentStatus.VERIFIED,
       orderStatus: OrderStatus.PAID,
       paymentTransactionId: result.paymentId,
@@ -106,7 +106,7 @@ export async function payuPaymentCallback(
 
       // Generate invoice for paid order
       try {
-        await googleSheets.assignInvoiceNumber(order.id);
+        await supabase.assignInvoiceNumber(order.id);
       } catch (e) {
         console.error("Invoice number assignment error:", e);
       }
@@ -139,7 +139,7 @@ export async function payuWebhookHandler(
       return;
     }
 
-    const order = await googleSheets.getOrderByNumber(result.orderNumber);
+    const order = await supabase.getOrderByNumber(result.orderNumber);
     if (!order) {
       res.status(200).json({ success: false, message: "Order not found" });
       return;
@@ -152,7 +152,7 @@ export async function payuWebhookHandler(
     }
 
     // Update order with payment details
-    const updated = await googleSheets.updateOrder(order.id, {
+    const updated = await supabase.updateOrder(order.id, {
       paymentStatus: PaymentStatus.VERIFIED,
       orderStatus: OrderStatus.PAID,
       paymentTransactionId: result.paymentId,
@@ -173,7 +173,7 @@ export async function payuWebhookHandler(
 
       // Generate invoice for paid order
       try {
-        await googleSheets.assignInvoiceNumber(order.id);
+        await supabase.assignInvoiceNumber(order.id);
       } catch (e) {
         console.error("Invoice number assignment error:", e);
       }
@@ -211,7 +211,7 @@ export async function payuBulkOrderCallback(
     const paymentType = isCredit ? "credit" : "prepaid";
 
     // Get order to check details
-    const order = await googleSheets.getBulkOrderByNumber(result.orderNumber);
+    const order = await supabase.getBulkOrderByNumber(result.orderNumber);
 
     if (!order) {
       // Render failure page with close button
@@ -239,7 +239,7 @@ export async function payuBulkOrderCallback(
         updates.creditErrorMessage = result.message;
       }
 
-      await googleSheets.updateBulkOrder(order.id, updates);
+      await supabase.updateBulkOrder(order.id, updates);
 
       // Render failure page with retry option and close button
       res.send(
@@ -285,7 +285,7 @@ export async function payuBulkOrderCallback(
       updates.orderStatus = OrderStatus.PROCESSING;
     }
 
-    await googleSheets.updateBulkOrder(order.id, updates);
+    await supabase.updateBulkOrder(order.id, updates);
 
     // Send payment confirmation email
     try {
@@ -481,7 +481,7 @@ export async function payuBulkOrderWebhook(
     const paymentType = isCredit ? "credit" : "prepaid";
 
     // Get order first (we need it for both success and failure cases)
-    const order = await googleSheets.getBulkOrderByNumber(result.orderNumber);
+    const order = await supabase.getBulkOrderByNumber(result.orderNumber);
     if (!order) {
       res.status(200).json({ success: false, message: "Bulk order not found" });
       return;
@@ -502,7 +502,7 @@ export async function payuBulkOrderWebhook(
         failureUpdates.creditErrorMessage = result.message;
       }
 
-      await googleSheets.updateBulkOrder(order.id, failureUpdates);
+      await supabase.updateBulkOrder(order.id, failureUpdates);
 
       res.status(200).json({
         success: false,
@@ -557,7 +557,7 @@ export async function payuBulkOrderWebhook(
       updates.orderStatus = OrderStatus.PROCESSING;
     }
 
-    await googleSheets.updateBulkOrder(order.id, updates);
+    await supabase.updateBulkOrder(order.id, updates);
 
     // Send payment confirmation email
     try {

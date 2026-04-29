@@ -1,4 +1,4 @@
-import googleSheets from "./googleSheets";
+import supabase from "./supabase";
 import * as productsService from "./productsService";
 import { CartItem, CartItemInput, OrderProduct } from "../types";
 
@@ -274,7 +274,7 @@ export async function buildPricedCart(
   let discountType: "PERCENTAGE" | "FIXED" | null = null;
 
   if (couponCode) {
-    const validation = await googleSheets.validateCoupon(couponCode, subtotal);
+    const validation = await supabase.validateCoupon(couponCode, subtotal);
     if (!validation?.valid) {
       throw new CartValidationError(validation?.message || "Invalid coupon code");
     }

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import googleSheets from '../services/googleSheets';
+import supabase from "../services/supabase";
 
 type DonationConfig = {
     amountPerOrder?: number;
@@ -76,8 +76,8 @@ function sortNewestFirst(a: any, b: any): number {
 export async function getDonationSummary(_req: Request, res: Response): Promise<void> {
     try {
         const [orders, donationConfigRaw] = await Promise.all([
-            googleSheets.getAllOrders(),
-            googleSheets.getConfig('donation_campaign'),
+            supabase.getAllOrders(),
+            supabase.getConfig('donation_campaign'),
         ]);
 
         const donationConfig = normalizeConfig(donationConfigRaw);

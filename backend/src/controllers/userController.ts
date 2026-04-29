@@ -2,7 +2,7 @@ import { Response } from "express";
 import axios from "axios";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
-import googleSheets from "../services/googleSheets";
+import supabase from "../services/supabase";
 import { AuthRequest } from "../middleware/auth";
 import { UserRole, UserStatus } from "../types";
 import { config } from "../config";
@@ -42,7 +42,7 @@ export async function getAllUsers(
       return;
     }
 
-    const users = await googleSheets.getAllAdminUsers();
+    const users = await supabase.getAllAdminUsers();
 
     let filteredUsers = users;
 
@@ -141,7 +141,7 @@ export async function createUser(
       return;
     }
 
-    const existing = await googleSheets.getAdminByEmail(email);
+    const existing = await supabase.getAdminByEmail(email);
     if (existing) {
       res.status(400).json({
         success: false,
@@ -158,7 +158,7 @@ export async function createUser(
         ? req.user.id
         : managerId || undefined;
 
-    const user = await googleSheets.createAdminUser({
+    const user = await supabase.createAdminUser({
       email,
       passwordHash,
       name: name || email.split("@")[0],
@@ -222,7 +222,7 @@ export async function updateUser(
     } = req.body;
 
     // Check permissions
-    const targetUser = await googleSheets.getAdminById(id);
+    const targetUser = await supabase.getAdminById(id);
     if (!targetUser) {
       res.status(404).json({ success: false, message: "User not found" });
       return;
@@ -259,7 +259,7 @@ export async function updateUser(
     if (location !== undefined) updates.location = location;
     if (password) updates.passwordHash = await bcrypt.hash(password, 12);
 
-    const user = await googleSheets.updateAdminUser(id, updates);
+    const user = await supabase.updateAdminUser(id, updates);
     if (!user) {
       res.status(404).json({ success: false, message: "User not found" });
       return;
@@ -309,7 +309,7 @@ export async function deleteUser(
       return;
     }
 
-    const deleted = await googleSheets.deleteAdminUser(id);
+    const deleted = await supabase.deleteAdminUser(id);
     if (!deleted) {
       res.status(404).json({ success: false, message: "User not found" });
       return;
@@ -348,7 +348,7 @@ export async function deactivateUser(
       return;
     }
 
-    const user = await googleSheets.updateAdminUser(id, {
+    const user = await supabase.updateAdminUser(id, {
       status: UserStatus.INACTIVE,
     });
     if (!user) {
@@ -384,7 +384,7 @@ export async function activateUser(
 
     const { id } = req.params;
 
-    const user = await googleSheets.updateAdminUser(id, {
+    const user = await supabase.updateAdminUser(id, {
       status: UserStatus.ACTIVE,
     });
     if (!user) {
@@ -424,7 +424,7 @@ export async function getTeamMembers(
     }
 
     const managerId = req.params.managerId || req.user.id;
-    const users = await googleSheets.getAllAdminUsers();
+    const users = await supabase.getAllAdminUsers();
     const teamMembers = users.filter((u) => u.managerId === managerId);
 
     res.json({
@@ -451,7 +451,7 @@ export async function getTeamMembers(
 // Public endpoint for landing page referral dropdown
 export async function getStaffList(req: any, res: Response): Promise<void> {
   try {
-    const users = await googleSheets.getAllAdminUsers();
+    const users = await supabase.getAllAdminUsers();
     // Filter to show only SALES and HEAD_DISTRIBUTION, and only active users
     const staffList = users
       .filter((u) => {
@@ -500,7 +500,7 @@ export async function getProfile(
       return;
     }
 
-    const user = await googleSheets.getAdminById(req.user.id);
+    const user = await supabase.getAdminById(req.user.id);
     if (!user) {
       res.status(404).json({ success: false, message: "User not found" });
       return;
@@ -585,7 +585,7 @@ export async function uploadProfilePhoto(
     }
 
     const profileImageUrl = `${config.supabaseUrl}/storage/v1/object/public/${config.supabaseProfilePhotosBucket}/${encodedFilePath}`;
-    const user = await googleSheets.updateAdminUser(req.user.id, {
+    const user = await supabase.updateAdminUser(req.user.id, {
       profileImageUrl,
     });
 
@@ -626,7 +626,7 @@ export async function updateProfile(
     if (phone !== undefined) updates.phone = phone;
     if (profileImageUrl !== undefined) updates.profileImageUrl = profileImageUrl;
 
-    const user = await googleSheets.updateAdminUser(req.user.id, updates);
+    const user = await supabase.updateAdminUser(req.user.id, updates);
     if (!user) {
       res.status(404).json({ success: false, message: "User not found" });
       return;
@@ -662,7 +662,7 @@ export async function getUserById(
     }
 
     const { id } = req.params;
-    const user = await googleSheets.getAdminById(id);
+    const user = await supabase.getAdminById(id);
 
     if (!user) {
       res.status(404).json({ success: false, message: "User not found" });
@@ -762,7 +762,7 @@ export async function changePassword(
     }
 
     // Fetch user to verify current password
-    const users = await googleSheets.getAllAdminUsers();
+    const users = await supabase.getAllAdminUsers();
     const user = users.find((u) => u.id === req.user?.id);
 
     if (!user) {
@@ -785,7 +785,7 @@ export async function changePassword(
 
     // Hash and update new password
     const newPasswordHash = await bcrypt.hash(newPassword, 12);
-    await googleSheets.updateAdminUser(req.user.id, {
+    await supabase.updateAdminUser(req.user.id, {
       passwordHash: newPasswordHash,
     });
 

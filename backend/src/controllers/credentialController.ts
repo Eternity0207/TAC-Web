@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
-import googleSheets from "../services/googleSheets";
+import supabase from "../services/supabase";
 
 // Get all credentials (admin sees all, users see their own)
 export async function getAll(req: Request, res: Response): Promise<void> {
     try {
         const user = (req as any).user;
-        // TODO: Implement getAllCredentials method in googleSheets service
-        // const credentials = await googleSheets.getAllCredentials();
+        // TODO: Implement getAllCredentials method in supabase service
+        // const credentials = await supabase.getAllCredentials();
         const credentials: any[] = [];
 
         // SUPER_ADMIN and ADMIN see all, others see only their own
@@ -25,8 +25,8 @@ export async function getAll(req: Request, res: Response): Promise<void> {
 export async function getByUser(req: Request, res: Response): Promise<void> {
     try {
         const { userId } = req.params;
-        // TODO: Implement getCredentialsByUser method in googleSheets service
-        // const credentials = await googleSheets.getCredentialsByUser(userId);
+        // TODO: Implement getCredentialsByUser method in supabase service
+        // const credentials = await supabase.getCredentialsByUser(userId);
         const credentials: any[] = [];
         res.json({ success: true, data: credentials });
     } catch (error: any) {
@@ -48,8 +48,8 @@ export async function create(req: Request, res: Response): Promise<void> {
             return;
         }
 
-        // TODO: Implement createCredential method in googleSheets service
-        // const credential = await googleSheets.createCredential({
+        // TODO: Implement createCredential method in supabase service
+        // const credential = await supabase.createCredential({
         //     ...data,
         //     createdBy: user.id,
         // });
@@ -72,8 +72,8 @@ export async function update(req: Request, res: Response): Promise<void> {
         const { id } = req.params;
         const updates = req.body;
 
-        // TODO: Implement updateCredential method in googleSheets service
-        // const credential = await googleSheets.updateCredential(id, updates);
+        // TODO: Implement updateCredential method in supabase service
+        // const credential = await supabase.updateCredential(id, updates);
         const credential = null;
         if (!credential) {
             res.status(404).json({ success: false, message: "Credential not found" });
@@ -91,8 +91,8 @@ export async function remove(req: Request, res: Response): Promise<void> {
     try {
         const { id } = req.params;
 
-        // TODO: Implement deleteCredential method in googleSheets service
-        // const success = await googleSheets.deleteCredential(id);
+        // TODO: Implement deleteCredential method in supabase service
+        // const success = await supabase.deleteCredential(id);
         const success = false;
         if (!success) {
             res.status(404).json({ success: false, message: "Credential not found" });

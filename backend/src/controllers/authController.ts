@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { config } from "../config";
-import googleSheets from "../services/googleSheets";
+import supabase from "../services/supabase";
 import { AuthRequest } from "../middleware/auth";
 import { UserRole, UserStatus } from "../types";
 
@@ -17,7 +17,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const admin = await googleSheets.getAdminByEmail(email);
+    const admin = await supabase.getAdminByEmail(email);
     if (!admin) {
       res.status(401).json({ success: false, message: "Invalid credentials" });
       return;
@@ -57,7 +57,7 @@ export async function login(req: Request, res: Response): Promise<void> {
       path: '/',
     });
 
-    await googleSheets.updateAdminLastLogin(admin.id);
+    await supabase.updateAdminLastLogin(admin.id);
 
     res.json({
       success: true,
@@ -86,7 +86,7 @@ export async function getProfile(
       res.status(401).json({ success: false, message: "Not authenticated" });
       return;
     }
-    const admin = await googleSheets.getAdminByEmail(req.user.email);
+    const admin = await supabase.getAdminByEmail(req.user.email);
     if (!admin) {
       res.status(404).json({ success: false, message: "User not found" });
       return;
@@ -107,14 +107,14 @@ export async function getProfile(
 
 export async function initAdmin(req: Request, res: Response): Promise<void> {
   try {
-    const existing = await googleSheets.getAdminByEmail(config.admin.email);
+    const existing = await supabase.getAdminByEmail(config.admin.email);
     if (existing) {
       res.status(400).json({ success: false, message: "Admin already exists" });
       return;
     }
 
     const passwordHash = await bcrypt.hash(config.admin.password, 12);
-    const admin = await googleSheets.createAdminUser({
+    const admin = await supabase.createAdminUser({
       email: config.admin.email,
       passwordHash,
       name: "Admin",

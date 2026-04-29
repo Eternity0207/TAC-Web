@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import googleSheets from "../services/googleSheets";
+import supabase from "../services/supabase";
 import { UserRole } from "../types";
 
 // Get all bulk customers (SUPER_ADMIN only)
@@ -16,7 +16,7 @@ export async function getAll(req: Request, res: Response): Promise<void> {
             return;
         }
 
-        const customers = await googleSheets.getAllBulkCustomers();
+        const customers = await supabase.getAllBulkCustomers();
         res.json({ success: true, data: customers });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
@@ -27,7 +27,7 @@ export async function getAll(req: Request, res: Response): Promise<void> {
 export async function getMine(req: Request, res: Response): Promise<void> {
     try {
         const user = (req as any).user;
-        const customers = await googleSheets.getBulkCustomersByUser(user.id);
+        const customers = await supabase.getBulkCustomersByUser(user.id);
         res.json({ success: true, data: customers });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
@@ -41,20 +41,20 @@ export async function getTeam(req: Request, res: Response): Promise<void> {
 
         // For HEAD_DISTRIBUTION - get team customers
         if (user.role === UserRole.HEAD_DISTRIBUTION) {
-            const customers = await googleSheets.getBulkCustomersByTeam(user.id);
+            const customers = await supabase.getBulkCustomersByTeam(user.id);
             res.json({ success: true, data: customers });
             return;
         }
 
         // For SUPER_ADMIN - return all
         if (user.role === UserRole.SUPER_ADMIN) {
-            const customers = await googleSheets.getAllBulkCustomers();
+            const customers = await supabase.getAllBulkCustomers();
             res.json({ success: true, data: customers });
             return;
         }
 
         // For TECHNICAL_ANALYST, SALES, and others - return only own customers
-        const customers = await googleSheets.getBulkCustomersByUser(user.id);
+        const customers = await supabase.getBulkCustomersByUser(user.id);
         res.json({ success: true, data: customers });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
@@ -67,7 +67,7 @@ export async function create(req: Request, res: Response): Promise<void> {
         const user = (req as any).user;
         const data = req.body;
 
-        const customer = await googleSheets.createBulkCustomer({
+        const customer = await supabase.createBulkCustomer({
             ...data,
             createdBy: user.id,
             managerId: user.managerId || user.id, // For hierarchy
@@ -85,7 +85,7 @@ export async function update(req: Request, res: Response): Promise<void> {
         const { id } = req.params;
         const updates = req.body;
 
-        const customer = await googleSheets.updateBulkCustomer(id, updates);
+        const customer = await supabase.updateBulkCustomer(id, updates);
         if (!customer) {
             res.status(404).json({ success: false, message: "Customer not found" });
             return;
@@ -102,7 +102,7 @@ export async function remove(req: Request, res: Response): Promise<void> {
     try {
         const { id } = req.params;
 
-        const success = await googleSheets.deleteBulkCustomer(id);
+        const success = await supabase.deleteBulkCustomer(id);
         if (!success) {
             res.status(404).json({ success: false, message: "Customer not found" });
             return;

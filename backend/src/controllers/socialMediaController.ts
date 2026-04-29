@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { AuthRequest } from "../middleware/auth";
 import socialMediaService from "../services/socialMediaService";
-import googleSheets from "../services/googleSheets";
+import supabase from "../services/supabase";
 
 // Get all social media stats (from cache in Sheets)
 export async function getStats(
@@ -9,7 +9,7 @@ export async function getStats(
     res: Response
 ): Promise<void> {
     try {
-        const stats = await googleSheets.getSocialMediaStats();
+        const stats = await supabase.getSocialMediaStats();
         res.json({ success: true, data: stats });
     } catch (error: any) {
         console.error("Get social media stats error:", error);
@@ -35,7 +35,7 @@ export async function refreshStats(
 
         // Save to Google Sheets
         for (const stat of stats) {
-            await googleSheets.saveSocialMediaStat(stat);
+            await supabase.saveSocialMediaStat(stat);
         }
 
         res.json({
@@ -55,7 +55,7 @@ export async function getSummary(
     res: Response
 ): Promise<void> {
     try {
-        const stats = await googleSheets.getSocialMediaStats();
+        const stats = await supabase.getSocialMediaStats();
 
         // Get latest stats per platform
         const latestByPlatform: { [key: string]: any } = {};
@@ -98,7 +98,7 @@ export async function getHistory(
 ): Promise<void> {
     try {
         const { platform, days = 30 } = req.query;
-        let stats = await googleSheets.getSocialMediaStats();
+        let stats = await supabase.getSocialMediaStats();
 
         // Filter by platform if specified
         if (platform) {

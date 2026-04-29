@@ -1,5 +1,5 @@
 import { Response } from "express";
-import googleSheets from "../services/googleSheets";
+import supabase from "../services/supabase";
 import { AuthRequest } from "../middleware/auth";
 import { UserRole, PaymentStatus, Order } from "../types";
 
@@ -34,7 +34,7 @@ export async function getMyReferralStats(
     }
 
     const userId = req.user.id;
-    const allOrders = await googleSheets.getAllOrders();
+    const allOrders = await supabase.getAllOrders();
 
     // Filter orders by referral
     const myOrders = allOrders.filter(
@@ -120,7 +120,7 @@ export async function getTeamStats(
     const managerId = req.user?.id;
 
     // Get team members
-    const allUsers = await googleSheets.getAllAdminUsers();
+    const allUsers = await supabase.getAllAdminUsers();
     const teamMembers = allUsers.filter(
       (u) =>
         u.managerId === managerId ||
@@ -128,7 +128,7 @@ export async function getTeamStats(
     );
 
     // Get all orders
-    const allOrders = await googleSheets.getAllOrders();
+    const allOrders = await supabase.getAllOrders();
 
     // Calculate stats for each team member
     const teamStats = teamMembers.map((member) => {
@@ -191,9 +191,9 @@ export async function getAllUserStats(
       return;
     }
 
-    const allUsers = await googleSheets.getAllAdminUsers();
-    const regularOrders = await googleSheets.getAllOrders();
-    const bulkOrdersData = await googleSheets.getAllBulkOrders();
+    const allUsers = await supabase.getAllAdminUsers();
+    const regularOrders = await supabase.getAllOrders();
+    const bulkOrdersData = await supabase.getAllBulkOrders();
 
     // Mark regular orders as retail and bulk orders as bulk, then combine
     const allOrders = [
@@ -381,8 +381,8 @@ export async function getSKUSalesData(
     const { userId } = req.params;
     const { period } = req.query; // e.g., "2026-01" for monthly
 
-    const allOrders = await googleSheets.getAllOrders();
-    const user = await googleSheets.getAdminById(userId);
+    const allOrders = await supabase.getAllOrders();
+    const user = await supabase.getAdminById(userId);
 
     if (!user) {
       res.status(404).json({ success: false, message: "User not found" });
@@ -498,7 +498,7 @@ export async function setUserTargets(
 
     // If manager, verify they can only set targets for their team
     if (isManager(req) && !hasAdminAccess(req)) {
-      const targetUser = await googleSheets.getAdminById(userId);
+      const targetUser = await supabase.getAdminById(userId);
       if (!targetUser || targetUser.managerId !== req.user?.id) {
         res.status(403).json({
           success: false,
@@ -508,7 +508,7 @@ export async function setUserTargets(
       }
     }
 
-    const updated = await googleSheets.updateAdminUser(userId, {
+    const updated = await supabase.updateAdminUser(userId, {
       salesTargets: targets,
     });
 
@@ -542,7 +542,7 @@ export async function getMyOrders(
     }
 
     const userId = req.user.id;
-    const allOrders = await googleSheets.getAllOrders();
+    const allOrders = await supabase.getAllOrders();
 
     // Sales users only see their referrals
     const myOrders = allOrders.filter(

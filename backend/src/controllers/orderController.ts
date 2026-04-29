@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import googleSheets from "../services/googleSheets";
+import supabase from "../services/supabase";
 import qrGenerator from "../services/qrGenerator";
 import emailService from "../services/emailService";
 import invoiceGenerator from "../services/invoiceGenerator";
@@ -144,7 +144,7 @@ async function buildOrderPaymentPayload(order: Order) {
       console.error("Email error:", mailError);
     }
   } else if (order.totalAmount <= 0) {
-    await googleSheets.updateOrder(order.id, {
+    await supabase.updateOrder(order.id, {
       paymentStatus: PaymentStatus.VERIFIED,
       orderStatus: OrderStatus.PAID,
       paymentReceivedAt: new Date().toISOString(),
@@ -199,7 +199,7 @@ export async function createOrder(req: Request, res: Response): Promise<void> {
     const normalizedAddressLine2 = normalizeText(addressLine2);
     const normalizedPaymentMode = resolvePaymentMode(paymentMode);
 
-    const order = await googleSheets.createOrder({
+    const order = await supabase.createOrder({
       customerName: normalizeText(customerName),
       customerEmail: normalizeText(customerEmail),
       customerPhone: normalizeText(customerPhone),
@@ -229,7 +229,7 @@ export async function createOrder(req: Request, res: Response): Promise<void> {
 
     if (priced.couponCode && priced.discountAmount > 0) {
       try {
-        await googleSheets.applyCoupon(priced.couponCode);
+        await supabase.applyCoupon(priced.couponCode);
       } catch (e) {
         console.error("Apply coupon error:", e);
       }
@@ -306,7 +306,7 @@ export async function createOrderFromLanding(
     let effectiveCouponCode = normalizeText(couponCode).toUpperCase();
 
     if (normalizedCartId) {
-      const cart = await googleSheets.getCartById(normalizedCartId);
+      const cart = await supabase.getCartById(normalizedCartId);
       if (!cart) {
         res.status(404).json({ success: false, message: "Cart not found" });
         return;
@@ -329,7 +329,7 @@ export async function createOrderFromLanding(
 
     const nowIso = new Date().toISOString();
 
-    const order = await googleSheets.createOrder({
+    const order = await supabase.createOrder({
       customerName: name,
       customerEmail: email,
       customerPhone: phone,
@@ -361,7 +361,7 @@ export async function createOrderFromLanding(
     // Apply coupon usage if coupon was used
     if (priced.couponCode && priced.discountAmount > 0) {
       try {
-        await googleSheets.applyCoupon(priced.couponCode);
+        await supabase.applyCoupon(priced.couponCode);
       } catch (e) {
         console.error("Apply coupon error:", e);
       }
@@ -372,7 +372,7 @@ export async function createOrderFromLanding(
 
     // Add to Form_Submissions sheet for tracking
     try {
-      await googleSheets.addFormSubmission({
+      await supabase.addFormSubmission({
         name,
         email,
         phone,
@@ -394,7 +394,7 @@ export async function createOrderFromLanding(
     }
 
     if (normalizedCartId) {
-      await googleSheets.updateCart(normalizedCartId, {
+      await supabase.updateCart(normalizedCartId, {
         items: [],
         itemCount: 0,
         subtotal: 0,
@@ -446,7 +446,7 @@ export async function getAllOrders(
       page,
       limit,
     } = req.query;
-    let orders = await googleSheets.getAllOrders();
+    let orders = await supabase.getAllOrders();
 
     // Filter out bulk orders by default (unless includeBulk=true)
     if (includeBulk !== "true") {
@@ -503,7 +503,7 @@ export async function getOrderById(
   res: Response,
 ): Promise<void> {
   try {
-    const order = await googleSheets.getOrderById(req.params.id);
+    const order = await supabase.getOrderById(req.params.id);
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
       return;
@@ -532,7 +532,7 @@ export async function updateOrderStatus(
 ): Promise<void> {
   try {
     const { status } = req.body;
-    const order = await googleSheets.updateOrder(req.params.id, {
+    const order = await supabase.updateOrder(req.params.id, {
       orderStatus: status,
     });
     if (!order) {
@@ -574,7 +574,7 @@ export async function updateOrder(
     if (customerNotes !== undefined) updates.customerNotes = customerNotes;
     if (internalNotes !== undefined) updates.internalNotes = internalNotes;
 
-    const order = await googleSheets.updateOrder(req.params.id, updates);
+    const order = await supabase.updateOrder(req.params.id, updates);
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
       return;
@@ -605,7 +605,7 @@ export async function updatePaymentStatus(
       updates.orderStatus = OrderStatus.PAID;
     }
 
-    const order = await googleSheets.updateOrder(req.params.id, updates);
+    const order = await supabase.updateOrder(req.params.id, updates);
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
       return;
@@ -650,11 +650,11 @@ export async function updateTracking(
     else if (deliveryPartner === "DTDC")
       trackingUrl = `https://www.dtdc.in/tracking/${trackingId}`;
 
-    let order = await googleSheets.getOrderById(req.params.id);
+    let order = await supabase.getOrderById(req.params.id);
     if (order && !order.invoiceNumber)
-      await googleSheets.assignInvoiceNumber(req.params.id);
+      await supabase.assignInvoiceNumber(req.params.id);
 
-    order = await googleSheets.updateOrder(req.params.id, {
+    order = await supabase.updateOrder(req.params.id, {
       trackingId,
       deliveryPartner,
       trackingUrl,
@@ -691,7 +691,7 @@ export async function cancelOrder(
   res: Response,
 ): Promise<void> {
   try {
-    const order = await googleSheets.updateOrder(req.params.id, {
+    const order = await supabase.updateOrder(req.params.id, {
       orderStatus: OrderStatus.CANCELLED,
       cancelledAt: new Date().toISOString(),
     });
@@ -714,7 +714,7 @@ export async function deleteCancelledOrder(
   res: Response,
 ): Promise<void> {
   try {
-    const order = await googleSheets.getOrderById(req.params.id);
+    const order = await supabase.getOrderById(req.params.id);
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
       return;
@@ -729,7 +729,7 @@ export async function deleteCancelledOrder(
       return;
     }
 
-    const deleted = await googleSheets.deleteOrder(req.params.id);
+    const deleted = await supabase.deleteOrder(req.params.id);
     if (!deleted) {
       res.status(500).json({
         success: false,
@@ -761,7 +761,7 @@ export async function markDelivered(
   res: Response,
 ): Promise<void> {
   try {
-    const order = await googleSheets.updateOrder(req.params.id, {
+    const order = await supabase.updateOrder(req.params.id, {
       orderStatus: OrderStatus.DELIVERED,
       deliveredAt: new Date().toISOString(),
     });
@@ -782,7 +782,7 @@ export async function markDelivered(
 
 export async function getOrderQR(req: Request, res: Response): Promise<void> {
   try {
-    const order = await googleSheets.getOrderById(req.params.id);
+    const order = await supabase.getOrderById(req.params.id);
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
       return;
@@ -818,14 +818,14 @@ export async function downloadInvoice(
   res: Response,
 ): Promise<void> {
   try {
-    let order = await googleSheets.getOrderById(req.params.id);
+    let order = await supabase.getOrderById(req.params.id);
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
       return;
     }
 
     if (!order.invoiceNumber)
-      order = await googleSheets.assignInvoiceNumber(req.params.id);
+      order = await supabase.assignInvoiceNumber(req.params.id);
     if (!order) {
       res
         .status(500)
@@ -852,7 +852,7 @@ export async function downloadShippingLabel(
   res: Response,
 ): Promise<void> {
   try {
-    const order = await googleSheets.getOrderById(req.params.id);
+    const order = await supabase.getOrderById(req.params.id);
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
       return;
@@ -877,14 +877,14 @@ export async function emailInvoice(
   res: Response,
 ): Promise<void> {
   try {
-    let order = await googleSheets.getOrderById(req.params.id);
+    let order = await supabase.getOrderById(req.params.id);
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
       return;
     }
 
     if (!order.invoiceNumber)
-      order = await googleSheets.assignInvoiceNumber(req.params.id);
+      order = await supabase.assignInvoiceNumber(req.params.id);
     if (!order) {
       res
         .status(500)
@@ -911,7 +911,7 @@ export async function getDashboardStats(
   try {
     let orders: any[] = [];
     try {
-      orders = await googleSheets.getAllOrders();
+      orders = await supabase.getAllOrders();
     } catch (ordersError) {
       console.error("Failed to fetch orders for dashboard:", ordersError);
       // Return empty stats if orders fetch fails
@@ -1050,7 +1050,7 @@ export async function getDashboardStats(
 export async function shareQR(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { method } = req.body;
-    const order = await googleSheets.getOrderById(req.params.id);
+    const order = await supabase.getOrderById(req.params.id);
 
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
@@ -1075,7 +1075,7 @@ export async function shareQR(req: AuthRequest, res: Response): Promise<void> {
 
       // Update payment status to QR_SHARED if still pending
       if (order.paymentStatus === PaymentStatus.PENDING) {
-        await googleSheets.updateOrder(order.id, {
+        await supabase.updateOrder(order.id, {
           paymentStatus: PaymentStatus.QR_SHARED,
         });
       }
@@ -1119,7 +1119,7 @@ export async function uploadPaymentScreenshot(
     const { base64Image, mimeType } = req.body;
 
     // Get order details to verify it exists
-    const orderRes = await googleSheets.getOrderById(id);
+    const orderRes = await supabase.getOrderById(id);
     if (!orderRes) {
       res.status(404).json({ success: false, message: "Order not found" });
       return;
@@ -1159,7 +1159,7 @@ export async function uploadPaymentScreenshot(
       // Update order with FULL screenshot URL (not relative path)
       const { config } = await import("../config");
       const screenshotUrl = `${config.uploadsUrl}/screenshots/${filename}`;
-      await googleSheets.uploadPaymentScreenshot({
+      await supabase.uploadPaymentScreenshot({
         orderId: id,
         orderNumber: orderRes.orderNumber,
         base64Image: screenshotUrl, // Store full URL
@@ -1176,7 +1176,7 @@ export async function uploadPaymentScreenshot(
       const { config } = await import("../config");
       const verifiedUrl = `${config.uploadsUrl
         }/verified/${new Date().toISOString()}`;
-      await googleSheets.uploadPaymentScreenshot({
+      await supabase.uploadPaymentScreenshot({
         orderId: id,
         orderNumber: orderRes.orderNumber,
         base64Image: verifiedUrl,
@@ -1206,7 +1206,7 @@ export async function uploadDeliveryReceipt(
     const { id } = req.params;
     const { base64Image, mimeType } = req.body;
 
-    const order = await googleSheets.getOrderById(id);
+    const order = await supabase.getOrderById(id);
     if (!order) {
       res.status(404).json({ success: false, message: "Order not found" });
       return;
@@ -1241,7 +1241,7 @@ export async function uploadDeliveryReceipt(
     // Update order with receipt URL
     const { config } = await import("../config");
     const receiptUrl = `${config.uploadsUrl}/delivery-receipts/${filename}`;
-    await googleSheets.updateOrder(id, { deliveryReceiptUrl: receiptUrl });
+    await supabase.updateOrder(id, { deliveryReceiptUrl: receiptUrl });
 
     res.json({
       success: true,
@@ -1270,7 +1270,7 @@ export async function searchOrders(
       return;
     }
 
-    const allOrders = await googleSheets.getAllOrders();
+    const allOrders = await supabase.getAllOrders();
     const searchStr = String(query).toLowerCase();
 
     const matches = allOrders.filter(
@@ -1296,7 +1296,7 @@ export async function getDeliveryReceipts(
   res: Response,
 ): Promise<void> {
   try {
-    const allOrders = await googleSheets.getAllOrders();
+    const allOrders = await supabase.getAllOrders();
     allOrders.sort((a, b) => getOrderTimestamp(b) - getOrderTimestamp(a));
     // Return all orders - any order can have a delivery receipt uploaded
     res.json({
@@ -1321,7 +1321,7 @@ export async function getBulkPaymentPage(req: Request, res: Response): Promise<v
     const { id } = req.params;
     const { type } = req.query;
 
-    const bulkOrder = await googleSheets.getBulkOrderById(id);
+    const bulkOrder = await supabase.getBulkOrderById(id);
     if (!bulkOrder) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
       return;
@@ -1348,7 +1348,7 @@ export async function processBulkPayUPayment(req: Request, res: Response): Promi
     const { id } = req.params;
     const paymentData = req.body;
 
-    const bulkOrder = await googleSheets.getBulkOrderById(id);
+    const bulkOrder = await supabase.getBulkOrderById(id);
     if (!bulkOrder) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
       return;
@@ -1384,7 +1384,7 @@ export async function processBulkUPIPayment(req: Request, res: Response): Promis
   try {
     const { id } = req.params;
 
-    const bulkOrder = await googleSheets.getBulkOrderById(id);
+    const bulkOrder = await supabase.getBulkOrderById(id);
     if (!bulkOrder) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
       return;

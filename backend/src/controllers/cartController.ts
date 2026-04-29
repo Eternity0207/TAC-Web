@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { Request, Response } from "express";
-import googleSheets from "../services/googleSheets";
+import supabase from "../services/supabase";
 import qrGenerator from "../services/qrGenerator";
 import payuPayment from "../services/payuPayment";
 import emailService from "../services/emailService";
@@ -65,7 +65,7 @@ export async function upsertCart(req: Request, res: Response): Promise<void> {
 
     const nowIso = new Date().toISOString();
     const cartId = normalizeId(rawCartId) || randomUUID();
-    const existing = await googleSheets.getCartById(cartId);
+    const existing = await supabase.getCartById(cartId);
 
     const payload = {
       id: cartId,
@@ -85,8 +85,8 @@ export async function upsertCart(req: Request, res: Response): Promise<void> {
     };
 
     const cart = existing
-      ? await googleSheets.updateCart(cartId, payload)
-      : await googleSheets.createCart(payload);
+      ? await supabase.updateCart(cartId, payload)
+      : await supabase.createCart(payload);
 
     if (!cart) {
       res.status(500).json({ success: false, message: "Failed to save cart" });
@@ -113,7 +113,7 @@ export async function getCartById(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const cart = await googleSheets.getCartById(cartId);
+    const cart = await supabase.getCartById(cartId);
     if (!cart) {
       res.status(404).json({ success: false, message: "Cart not found" });
       return;
@@ -128,7 +128,7 @@ export async function getCartById(req: Request, res: Response): Promise<void> {
 
     try {
       const priced = await buildPricedCart(toCartInputItems(currentItems), cart.couponCode);
-      const updated = await googleSheets.updateCart(cart.id, {
+      const updated = await supabase.updateCart(cart.id, {
         items: priced.items,
         itemCount: priced.itemCount,
         subtotal: priced.subtotal,
@@ -165,13 +165,13 @@ export async function clearCart(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const existing = await googleSheets.getCartById(cartId);
+    const existing = await supabase.getCartById(cartId);
     if (!existing) {
       res.status(404).json({ success: false, message: "Cart not found" });
       return;
     }
 
-    const cleared = await googleSheets.updateCart(cartId, {
+    const cleared = await supabase.updateCart(cartId, {
       ...buildEmptyCartSnapshot(),
       updatedAt: new Date().toISOString(),
       currency: "INR",
@@ -197,7 +197,7 @@ export async function checkoutCart(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    const cart = await googleSheets.getCartById(cartId);
+    const cart = await supabase.getCartById(cartId);
     if (!cart) {
       res.status(404).json({ success: false, message: "Cart not found" });
       return;
@@ -251,7 +251,7 @@ export async function checkoutCart(req: Request, res: Response): Promise<void> {
     const paymentMode = normalizePaymentMode(requestedPaymentMode);
 
     const nowIso = new Date().toISOString();
-    const order = await googleSheets.createOrder({
+    const order = await supabase.createOrder({
       customerName: normalizedName,
       customerEmail: normalizedEmail,
       customerPhone: normalizedPhone,
@@ -282,7 +282,7 @@ export async function checkoutCart(req: Request, res: Response): Promise<void> {
 
     if (priced.couponCode && priced.discountAmount > 0) {
       try {
-        await googleSheets.applyCoupon(priced.couponCode);
+        await supabase.applyCoupon(priced.couponCode);
       } catch (couponError) {
         console.error("Apply coupon error:", couponError);
       }
@@ -321,14 +321,14 @@ export async function checkoutCart(req: Request, res: Response): Promise<void> {
         console.error("Checkout email error:", mailError);
       }
     } else if (order.totalAmount <= 0) {
-      await googleSheets.updateOrder(order.id, {
+      await supabase.updateOrder(order.id, {
         paymentStatus: PaymentStatus.VERIFIED,
         orderStatus: OrderStatus.PAID,
         paymentReceivedAt: new Date().toISOString(),
       });
     }
 
-    await googleSheets.updateCart(cart.id, {
+    await supabase.updateCart(cart.id, {
       ...buildEmptyCartSnapshot(),
       updatedAt: new Date().toISOString(),
       currency: "INR",

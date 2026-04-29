@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import googleSheets from '../services/googleSheets';
+import supabase from "../services/supabase";
 import { AuthRequest } from '../middleware/auth';
 
 // ============================================================
@@ -8,7 +8,7 @@ import { AuthRequest } from '../middleware/auth';
 
 export async function getUpcomingProducts(req: Request, res: Response) {
     try {
-        const products = await googleSheets.getUpcomingProducts();
+        const products = await supabase.getUpcomingProducts();
         res.json({ success: true, data: products });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
@@ -21,7 +21,7 @@ export async function createUpcomingProduct(req: AuthRequest, res: Response) {
         if (!name || !imageUrl) {
             return res.status(400).json({ success: false, message: 'Name and image URL are required' });
         }
-        const product = await googleSheets.createUpcomingProduct({
+        const product = await supabase.createUpcomingProduct({
             name, description, imageUrl, launchDate, badgeText: badgeText || 'Coming Soon',
             status: status || 'active', createdBy: req.user?.id
         });
@@ -34,7 +34,7 @@ export async function createUpcomingProduct(req: AuthRequest, res: Response) {
 export async function updateUpcomingProduct(req: AuthRequest, res: Response) {
     try {
         const { id } = req.params;
-        const product = await googleSheets.updateUpcomingProduct(id, req.body);
+        const product = await supabase.updateUpcomingProduct(id, req.body);
         if (!product) return res.status(404).json({ success: false, message: 'Product not found' });
         res.json({ success: true, data: product });
     } catch (error: any) {
@@ -45,7 +45,7 @@ export async function updateUpcomingProduct(req: AuthRequest, res: Response) {
 export async function deleteUpcomingProduct(req: AuthRequest, res: Response) {
     try {
         const { id } = req.params;
-        const success = await googleSheets.deleteUpcomingProduct(id);
+        const success = await supabase.deleteUpcomingProduct(id);
         if (!success) return res.status(404).json({ success: false, message: 'Product not found' });
         res.json({ success: true, message: 'Deleted successfully' });
     } catch (error: any) {
@@ -63,7 +63,7 @@ export async function createBulkEnquiry(req: Request, res: Response) {
         if (!contactPerson || !phone || !email) {
             return res.status(400).json({ success: false, message: 'Contact person, email, and phone are required' });
         }
-        const enquiry = await googleSheets.createBulkEnquiry({
+        const enquiry = await supabase.createBulkEnquiry({
             businessName, contactPerson, email, phone, productInterest,
             estimatedQuantity, message, status: 'NEW'
         });
@@ -75,7 +75,7 @@ export async function createBulkEnquiry(req: Request, res: Response) {
 
 export async function getAllBulkEnquiries(req: AuthRequest, res: Response) {
     try {
-        const enquiries = await googleSheets.getAllBulkEnquiries();
+        const enquiries = await supabase.getAllBulkEnquiries();
         res.json({ success: true, data: enquiries });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
@@ -87,7 +87,7 @@ export async function updateBulkEnquiryStatus(req: AuthRequest, res: Response) {
         const { id } = req.params;
         const { status, notes } = req.body;
         if (!status) return res.status(400).json({ success: false, message: 'Status is required' });
-        const enquiry = await googleSheets.updateBulkEnquiry(id, { status, notes });
+        const enquiry = await supabase.updateBulkEnquiry(id, { status, notes });
         if (!enquiry) return res.status(404).json({ success: false, message: 'Enquiry not found' });
         res.json({ success: true, data: enquiry });
     } catch (error: any) {
@@ -101,7 +101,7 @@ export async function updateBulkEnquiryStatus(req: AuthRequest, res: Response) {
 
 export async function getVideoReviews(req: Request, res: Response) {
     try {
-        const reviews = await googleSheets.getVideoReviews();
+        const reviews = await supabase.getVideoReviews();
         res.json({ success: true, data: reviews });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
@@ -114,7 +114,7 @@ export async function createVideoReview(req: AuthRequest, res: Response) {
         if (!customerName || !driveLink) {
             return res.status(400).json({ success: false, message: 'Customer name and Drive link are required' });
         }
-        const review = await googleSheets.createVideoReview({
+        const review = await supabase.createVideoReview({
             customerName, driveLink, productName, description,
             status: status || 'published', createdBy: req.user?.id
         });
@@ -127,7 +127,7 @@ export async function createVideoReview(req: AuthRequest, res: Response) {
 export async function updateVideoReview(req: AuthRequest, res: Response) {
     try {
         const { id } = req.params;
-        const review = await googleSheets.updateVideoReview(id, req.body);
+        const review = await supabase.updateVideoReview(id, req.body);
         if (!review) return res.status(404).json({ success: false, message: 'Review not found' });
         res.json({ success: true, data: review });
     } catch (error: any) {
@@ -138,7 +138,7 @@ export async function updateVideoReview(req: AuthRequest, res: Response) {
 export async function deleteVideoReview(req: AuthRequest, res: Response) {
     try {
         const { id } = req.params;
-        const success = await googleSheets.deleteVideoReview(id);
+        const success = await supabase.deleteVideoReview(id);
         if (!success) return res.status(404).json({ success: false, message: 'Review not found' });
         res.json({ success: true, message: 'Deleted successfully' });
     } catch (error: any) {
@@ -152,7 +152,7 @@ export async function deleteVideoReview(req: AuthRequest, res: Response) {
 
 export async function getProductionVideos(req: Request, res: Response) {
     try {
-        const videos = await googleSheets.getProductionVideos();
+        const videos = await supabase.getProductionVideos();
         res.json({ success: true, data: videos });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
@@ -165,7 +165,7 @@ export async function createProductionVideo(req: AuthRequest, res: Response) {
         if (!title || !driveLink) {
             return res.status(400).json({ success: false, message: 'Title and Drive link are required' });
         }
-        const video = await googleSheets.createProductionVideo({
+        const video = await supabase.createProductionVideo({
             title, driveLink, description, thumbnailUrl,
             priority: priority || 0, createdBy: req.user?.id
         });
@@ -178,7 +178,7 @@ export async function createProductionVideo(req: AuthRequest, res: Response) {
 export async function updateProductionVideo(req: AuthRequest, res: Response) {
     try {
         const { id } = req.params;
-        const video = await googleSheets.updateProductionVideo(id, req.body);
+        const video = await supabase.updateProductionVideo(id, req.body);
         if (!video) return res.status(404).json({ success: false, message: 'Video not found' });
         res.json({ success: true, data: video });
     } catch (error: any) {
@@ -189,7 +189,7 @@ export async function updateProductionVideo(req: AuthRequest, res: Response) {
 export async function deleteProductionVideo(req: AuthRequest, res: Response) {
     try {
         const { id } = req.params;
-        const success = await googleSheets.deleteProductionVideo(id);
+        const success = await supabase.deleteProductionVideo(id);
         if (!success) return res.status(404).json({ success: false, message: 'Video not found' });
         res.json({ success: true, message: 'Deleted successfully' });
     } catch (error: any) {
@@ -203,7 +203,7 @@ export async function deleteProductionVideo(req: AuthRequest, res: Response) {
 
 export async function getWhatsAppReviews(req: Request, res: Response) {
     try {
-        const reviews = await googleSheets.getWhatsAppReviews();
+        const reviews = await supabase.getWhatsAppReviews();
         res.json({ success: true, data: reviews });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
@@ -216,7 +216,7 @@ export async function createWhatsAppReview(req: AuthRequest, res: Response) {
         if (!customerName) {
             return res.status(400).json({ success: false, message: 'Customer name is required' });
         }
-        const review = await googleSheets.createWhatsAppReview({
+        const review = await supabase.createWhatsAppReview({
             customerName, screenshotUrl, message, location, productName,
             status: status || 'active'
         });
@@ -229,7 +229,7 @@ export async function createWhatsAppReview(req: AuthRequest, res: Response) {
 export async function updateWhatsAppReview(req: AuthRequest, res: Response) {
     try {
         const { id } = req.params;
-        const review = await googleSheets.updateWhatsAppReview(id, req.body);
+        const review = await supabase.updateWhatsAppReview(id, req.body);
         if (!review) return res.status(404).json({ success: false, message: 'Review not found' });
         res.json({ success: true, data: review });
     } catch (error: any) {
@@ -240,7 +240,7 @@ export async function updateWhatsAppReview(req: AuthRequest, res: Response) {
 export async function deleteWhatsAppReview(req: AuthRequest, res: Response) {
     try {
         const { id } = req.params;
-        const success = await googleSheets.deleteWhatsAppReview(id);
+        const success = await supabase.deleteWhatsAppReview(id);
         if (!success) return res.status(404).json({ success: false, message: 'Review not found' });
         res.json({ success: true, message: 'Deleted successfully' });
     } catch (error: any) {

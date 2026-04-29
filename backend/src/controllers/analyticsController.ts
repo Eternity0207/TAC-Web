@@ -1,6 +1,6 @@
 import { Response } from "express";
 import inventoryService from "../services/inventoryService";
-import googleSheets from "../services/googleSheets";
+import supabase from "../services/supabase";
 import { AuthRequest } from "../middleware/auth";
 import { OrderStatus, PaymentStatus, UserRole } from "../types";
 
@@ -687,9 +687,7 @@ export async function getTeamMembersForCommission(
       return;
     }
 
-    // Import googleSheets to fetch AdminUsers
-    const googleSheets = (await import("../services/googleSheets")).default;
-    const allUsers = await googleSheets.getAllAdminUsers();
+    const allUsers = await supabase.getAllAdminUsers();
 
     // Filter users by managerId
     const teamMembers = allUsers.filter((u: any) => u.managerId === managerId);
@@ -1156,7 +1154,7 @@ export async function getDashboardStats(
       return;
     }
 
-    const orders = await googleSheets.getAllOrders();
+    const orders = await supabase.getAllOrders();
     const regularOrders = orders || [];
     const recentOrders = [...regularOrders].sort(
       (a: any, b: any) => getOrderTimestamp(b) - getOrderTimestamp(a)

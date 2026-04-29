@@ -1,8 +1,5 @@
 import { Request, Response } from "express";
-import googleSheets, {
-  BulkOrder,
-  BulkOrderStats,
-} from "../services/googleSheets";
+import supabase from "../services/supabase";
 import bulkPricingService from "../services/bulkPricingService";
 import payuPayment from "../services/payuPayment";
 import qrGenerator from "../services/qrGenerator";
@@ -151,7 +148,7 @@ export async function createBulkOrder(
     }
 
     // Create bulk order in SEPARATE Bulk Orders sheet
-    const bulkOrder = await googleSheets.createBulkOrder({
+    const bulkOrder = await supabase.createBulkOrder({
       customerName,
       customerEmail,
       customerPhone,
@@ -247,7 +244,7 @@ export async function getBulkOrders(
       return;
     }
 
-    const bulkOrders = await googleSheets.getAllBulkOrders();
+    const bulkOrders = await supabase.getAllBulkOrders();
 
     res.json({
       success: true,
@@ -279,7 +276,7 @@ export async function getBulkOrderStatsController(
       return;
     }
 
-    const stats = await googleSheets.getBulkOrderStats();
+    const stats = await supabase.getBulkOrderStats();
 
     res.json({
       success: true,
@@ -314,7 +311,7 @@ export async function updateBulkOrder(
     const { id } = req.params;
     const updates = req.body;
 
-    const updatedOrder = await googleSheets.updateBulkOrder(id, updates);
+    const updatedOrder = await supabase.updateBulkOrder(id, updates);
     if (!updatedOrder) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
       return;
@@ -343,7 +340,7 @@ export async function initiatePayment(
     const { id } = req.params;
     const { paymentType } = req.body; // 'prepaid' or 'credit'
 
-    const order = await googleSheets.getBulkOrderById(id);
+    const order = await supabase.getBulkOrderById(id);
     if (!order) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
       return;
@@ -436,7 +433,7 @@ export async function markPaymentPaid(
     const { id } = req.params;
     const { paymentType, txnId } = req.body; // 'prepaid' or 'credit'
 
-    const order = await googleSheets.getBulkOrderById(id);
+    const order = await supabase.getBulkOrderById(id);
     if (!order) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
       return;
@@ -457,7 +454,7 @@ export async function markPaymentPaid(
       return;
     }
 
-    const updatedOrder = await googleSheets.updateBulkOrder(id, updates);
+    const updatedOrder = await supabase.updateBulkOrder(id, updates);
 
     res.json({
       success: true,
@@ -486,7 +483,7 @@ export async function getBulkOrderByIdController(
     }
 
     const { id } = req.params;
-    const order = await googleSheets.getBulkOrderById(id);
+    const order = await supabase.getBulkOrderById(id);
 
     if (!order) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
@@ -537,7 +534,7 @@ export async function addBulkOrderTracking(
       expectedDeliveryDate: expectedDeliveryDate || "",
     };
 
-    const updatedOrder = await googleSheets.updateBulkOrder(id, updates);
+    const updatedOrder = await supabase.updateBulkOrder(id, updates);
 
     if (!updatedOrder) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
@@ -574,7 +571,7 @@ export async function markBulkOrderShipped(
       shippedAt: new Date().toISOString(),
     };
 
-    const updatedOrder = await googleSheets.updateBulkOrder(id, updates);
+    const updatedOrder = await supabase.updateBulkOrder(id, updates);
 
     if (!updatedOrder) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
@@ -613,7 +610,7 @@ export async function markBulkOrderDelivered(
       deliveredAt: new Date().toISOString(),
     };
 
-    const updatedOrder = await googleSheets.updateBulkOrder(id, updates);
+    const updatedOrder = await supabase.updateBulkOrder(id, updates);
 
     if (!updatedOrder) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
@@ -654,7 +651,7 @@ export async function cancelBulkOrder(
       internalNotes: reason ? `Cancelled: ${reason}` : "Order cancelled",
     };
 
-    const updatedOrder = await googleSheets.updateBulkOrder(id, updates);
+    const updatedOrder = await supabase.updateBulkOrder(id, updates);
 
     if (!updatedOrder) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
@@ -686,7 +683,7 @@ export async function downloadBulkInvoice(
     }
 
     const { id } = req.params;
-    const order = await googleSheets.getBulkOrderById(id);
+    const order = await supabase.getBulkOrderById(id);
 
     if (!order) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
@@ -735,7 +732,7 @@ export async function emailBulkInvoice(
     }
 
     const { id } = req.params;
-    const order = await googleSheets.getBulkOrderById(id);
+    const order = await supabase.getBulkOrderById(id);
 
     if (!order) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
@@ -778,7 +775,7 @@ export async function getPaymentQR(
     const { id } = req.params;
     const { paymentType } = req.query; // 'prepaid' or 'credit'
 
-    const order = await googleSheets.getBulkOrderById(id);
+    const order = await supabase.getBulkOrderById(id);
 
     if (!order) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
@@ -857,7 +854,7 @@ export async function getPayUCheckout(
     const { id } = req.params;
     const { paymentType } = req.query; // 'prepaid' or 'credit'
 
-    const order = await googleSheets.getBulkOrderById(id);
+    const order = await supabase.getBulkOrderById(id);
 
     if (!order) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
@@ -935,7 +932,7 @@ export async function renderPaymentPage(
     const { type } = req.query;
     const paymentType = type === "credit" ? "credit" : "prepaid";
 
-    const order = await googleSheets.getBulkOrderById(id);
+    const order = await supabase.getBulkOrderById(id);
 
     if (!order) {
       res.status(404).send(`
@@ -1063,7 +1060,7 @@ export async function uploadBulkDeliveryReceipt(
     const { id } = req.params;
     const { base64Image, mimeType } = req.body;
 
-    const order = await googleSheets.getBulkOrderById(id);
+    const order = await supabase.getBulkOrderById(id);
     if (!order) {
       res.status(404).json({ success: false, message: "Bulk order not found" });
       return;
@@ -1101,7 +1098,7 @@ export async function uploadBulkDeliveryReceipt(
     // Update order with receipt URL
     const { config } = await import("../config");
     const receiptUrl = `${config.uploadsUrl}/bulk-delivery-receipts/${filename}`;
-    await googleSheets.updateBulkOrder(id, {
+    await supabase.updateBulkOrder(id, {
       deliveryReceiptUrl: receiptUrl,
       orderStatus: OrderStatus.DELIVERED,
       deliveredAt: new Date().toISOString(),
@@ -1191,7 +1188,7 @@ export async function createBulkEnquiry(
 
     const enquiryId = `ENQ-${Date.now()}`;
 
-    const enquiry = await googleSheets.createBulkEnquiry({
+    const enquiry = await supabase.createBulkEnquiry({
       id: enquiryId,
       businessName: rawBusinessName || "",
       contactPerson: rawContactPerson,
@@ -1231,7 +1228,7 @@ export async function createBulkEnquiry(
 // Get all bulk enquiries
 export async function getBulkEnquiries(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const enquiries = await googleSheets.getAllBulkEnquiries();
+    const enquiries = await supabase.getAllBulkEnquiries();
 
     const normalized = (enquiries || [])
       .map((entry: any) => {
@@ -1324,7 +1321,7 @@ export async function updateBulkEnquiryStatus(
     // Be tolerant for older admin bundles that may send partial payloads.
     let status = requestedStatus;
     if (!status || !allowedStatuses.has(status)) {
-      const all = await googleSheets.getAllBulkEnquiries();
+      const all = await supabase.getAllBulkEnquiries();
       const current = (all || []).find(
         (entry: any) => String(entry?.id || "") === String(id),
       );
@@ -1338,7 +1335,7 @@ export async function updateBulkEnquiryStatus(
       if (!allowedStatuses.has(status)) status = "NEW";
     }
 
-    const enquiry = await googleSheets.updateBulkEnquiry(id, {
+    const enquiry = await supabase.updateBulkEnquiry(id, {
       status,
       notes,
       updatedBy: req.user?.id || "",

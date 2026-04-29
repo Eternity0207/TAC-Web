@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import googleSheets from "../services/googleSheets";
+import supabase from "../services/supabase";
 
 // Get all coupons (admin only)
 export async function getAll(req: Request, res: Response): Promise<void> {
     try {
-        const coupons = await googleSheets.getAllCoupons();
+        const coupons = await supabase.getAllCoupons();
         res.json({ success: true, data: coupons });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
@@ -22,7 +22,7 @@ export async function create(req: Request, res: Response): Promise<void> {
             return;
         }
 
-        const coupon = await googleSheets.createCoupon({
+        const coupon = await supabase.createCoupon({
             ...data,
             createdBy: user.id,
         });
@@ -39,7 +39,7 @@ export async function update(req: Request, res: Response): Promise<void> {
         const { id } = req.params;
         const updates = req.body;
 
-        const coupon = await googleSheets.updateCoupon(id, updates);
+        const coupon = await supabase.updateCoupon(id, updates);
         if (!coupon) {
             res.status(404).json({ success: false, message: "Coupon not found" });
             return;
@@ -56,7 +56,7 @@ export async function remove(req: Request, res: Response): Promise<void> {
     try {
         const { id } = req.params;
 
-        const success = await googleSheets.deleteCoupon(id);
+        const success = await supabase.deleteCoupon(id);
         if (!success) {
             res.status(404).json({ success: false, message: "Coupon not found" });
             return;
@@ -78,7 +78,7 @@ export async function validate(req: Request, res: Response): Promise<void> {
             return;
         }
 
-        const result = await googleSheets.validateCoupon(
+        const result = await supabase.validateCoupon(
             couponCode,
             parseFloat(subtotal) || 0
         );
@@ -99,7 +99,7 @@ export async function apply(req: Request, res: Response): Promise<void> {
             return;
         }
 
-        const success = await googleSheets.applyCoupon(couponCode);
+        const success = await supabase.applyCoupon(couponCode);
         if (!success) {
             res.status(404).json({ success: false, message: "Coupon not found" });
             return;
@@ -114,7 +114,7 @@ export async function apply(req: Request, res: Response): Promise<void> {
 // Get valid coupons for frontend use
 export async function getValidCoupons(req: Request, res: Response): Promise<void> {
     try {
-        const coupons = await googleSheets.getAllCoupons();
+        const coupons = await supabase.getAllCoupons();
         res.json({ success: true, data: coupons || [] });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });

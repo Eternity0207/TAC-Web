@@ -1,4 +1,4 @@
-import googleSheets from "./googleSheets";
+import supabase from "./supabase";
 import bulkPricingService from "./bulkPricingService";
 import * as productsService from "./productsService";
 import { BulkPricingConfig, PackagingOption } from "../types";
@@ -217,7 +217,7 @@ function normalizePackagingConfig(raw: any): PackagingOption[] {
 export async function getResolvedBulkPricingConfig(): Promise<
   BulkPricingConfig[]
 > {
-  const rawConfig = await googleSheets.getConfig("bulk_pricing");
+  const rawConfig = await supabase.getConfig("bulk_pricing");
   const storedConfig = normalizeBulkPricingConfig(rawConfig);
 
   try {
@@ -231,7 +231,7 @@ export async function getResolvedBulkPricingConfig(): Promise<
 }
 
 export async function getResolvedPackagingOptions(): Promise<PackagingOption[]> {
-  const rawConfig = await googleSheets.getConfig("packaging");
+  const rawConfig = await supabase.getConfig("packaging");
   const storedOptions = normalizePackagingConfig(rawConfig);
 
   if (storedOptions.length > 0) {

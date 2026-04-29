@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import * as reviewsService from '../services/reviewsService';
-import googleSheets from '../services/googleSheets';
+import supabase from "../services/supabase";
 import googlePlacesReviewsService, { type GoogleReviewsPayload } from '../services/googlePlacesReviewsService';
 import { AuthRequest } from '../middleware/auth';
 import * as fs from 'fs';
@@ -83,7 +83,7 @@ async function verifyReviewPurchase(input: ReviewPurchaseVerificationInput): Pro
         return { verified: false, reason: 'Order number is required', orderProductNames: [] };
     }
 
-    const order = await googleSheets.getOrderByNumber(orderNumber);
+    const order = await supabase.getOrderByNumber(orderNumber);
     if (!order) {
         return { verified: false, reason: 'Order not found', orderProductNames: [] };
     }
@@ -297,7 +297,7 @@ export async function getVideoReviews(req: Request, res: Response): Promise<void
     try {
         const [reviews, curatedVideoReviews] = await Promise.all([
             reviewsService.getApprovedReviews(),
-            googleSheets.getVideoReviews().catch(() => []),
+            supabase.getVideoReviews().catch(() => []),
         ]);
 
         const fromApprovedReviews = reviews

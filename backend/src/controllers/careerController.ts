@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
-import * as sheetsService from '../services/googleSheets';
+import supabase from "../services/supabase";
 import { AuthRequest } from '../middleware/auth';
 
 // Public: Get open career listings (for landing page)
 export async function getPublicCareers(req: Request, res: Response): Promise<void> {
     try {
-        const allCareers = await sheetsService.getAllCareers();
+        const allCareers = await supabase.getAllCareers();
         const openCareers = allCareers.filter((c: any) => c.status === 'OPEN');
         res.json({ success: true, data: openCareers });
     } catch (error) {
@@ -17,7 +17,7 @@ export async function getPublicCareers(req: Request, res: Response): Promise<voi
 // Protected: Get all career listings (for admin)
 export async function getAllCareers(req: AuthRequest, res: Response): Promise<void> {
     try {
-        const careers = await sheetsService.getAllCareers();
+        const careers = await supabase.getAllCareers();
         res.json({ success: true, data: careers });
     } catch (error) {
         console.error('Get all careers error:', error);
@@ -35,7 +35,7 @@ export async function createCareer(req: AuthRequest, res: Response): Promise<voi
             return;
         }
 
-        const result = await sheetsService.createCareer({
+        const result = await supabase.createCareer({
             title,
             department,
             location,
@@ -58,7 +58,7 @@ export async function createCareer(req: AuthRequest, res: Response): Promise<voi
 export async function updateCareer(req: AuthRequest, res: Response): Promise<void> {
     try {
         const { id } = req.params;
-        const result = await sheetsService.updateCareer(id, req.body);
+        const result = await supabase.updateCareer(id, req.body);
         res.json(result);
     } catch (error) {
         console.error('Update career error:', error);
@@ -70,7 +70,7 @@ export async function updateCareer(req: AuthRequest, res: Response): Promise<voi
 export async function deleteCareer(req: AuthRequest, res: Response): Promise<void> {
     try {
         const { id } = req.params;
-        const result = await sheetsService.deleteCareer(id);
+        const result = await supabase.deleteCareer(id);
         res.json(result);
     } catch (error) {
         console.error('Delete career error:', error);
@@ -88,7 +88,7 @@ export async function submitApplication(req: Request, res: Response): Promise<vo
             return;
         }
 
-        const result = await sheetsService.createApplication({
+        const result = await supabase.createApplication({
             jobId,
             jobTitle,
             applicantName,
@@ -112,7 +112,7 @@ export async function submitApplication(req: Request, res: Response): Promise<vo
 // Protected: Get all applications (for admin)
 export async function getAllApplications(req: AuthRequest, res: Response): Promise<void> {
     try {
-        const applications = await sheetsService.getAllApplications();
+        const applications = await supabase.getAllApplications();
         res.json({ success: true, data: applications });
     } catch (error) {
         console.error('Get all applications error:', error);
@@ -124,7 +124,7 @@ export async function getAllApplications(req: AuthRequest, res: Response): Promi
 export async function getApplicationsByJob(req: AuthRequest, res: Response): Promise<void> {
     try {
         const { jobId } = req.params;
-        const applications = await sheetsService.getApplicationsByJob(jobId);
+        const applications = await supabase.getApplicationsByJob(jobId);
         res.json({ success: true, data: applications });
     } catch (error) {
         console.error('Get applications by job error:', error);
@@ -140,7 +140,7 @@ export async function updateApplication(req: AuthRequest, res: Response): Promis
         if (req.user?.name) {
             updates.reviewedBy = req.user.name;
         }
-        const result = await sheetsService.updateApplication(id, updates);
+        const result = await supabase.updateApplication(id, updates);
         res.json(result);
     } catch (error) {
         console.error('Update application error:', error);

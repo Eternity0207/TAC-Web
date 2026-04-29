@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import * as productsService from '../services/productsService';
 import * as reviewsService from '../services/reviewsService';
-import googleSheets from '../services/googleSheets';
+import supabase from "../services/supabase";
 import { AuthRequest } from '../middleware/auth';
 
 // Helper: match review.productName to product name  
@@ -149,7 +149,7 @@ export async function deleteProduct(req: AuthRequest, res: Response): Promise<vo
 // Get all SKUs
 export async function getAllSKUs(req: AuthRequest, res: Response): Promise<void> {
     try {
-        const skus = await googleSheets.getSKUs();
+        const skus = await supabase.getSKUs();
 
         res.json({
             success: true,
@@ -166,8 +166,8 @@ export async function createSKU(req: AuthRequest, res: Response): Promise<void> 
     try {
         const skuData = req.body;
 
-        // TODO: Implement createSKU method in googleSheets service
-        // const newSKU = await googleSheets.createSKU(skuData);
+        // TODO: Implement createSKU method in supabase service
+        // const newSKU = await supabase.createSKU(skuData);
         const newSKU = {
             ...skuData,
             id: Date.now().toString(),
@@ -191,8 +191,8 @@ export async function updateSKU(req: AuthRequest, res: Response): Promise<void> 
         const skuId = req.params.id;
         const updateData = req.body;
 
-        // TODO: Implement updateSKU method in googleSheets service
-        // const updatedSKU = await googleSheets.updateSKU(skuId, updateData);
+        // TODO: Implement updateSKU method in supabase service
+        // const updatedSKU = await supabase.updateSKU(skuId, updateData);
         const updatedSKU = null;
         if (!updatedSKU) {
             res.status(404).json({ success: false, message: 'SKU not found' });
@@ -215,8 +215,8 @@ export async function deleteSKU(req: AuthRequest, res: Response): Promise<void> 
     try {
         const skuId = req.params.id;
 
-        // TODO: Implement deleteSKU method in googleSheets service
-        // const deleted = await googleSheets.deleteSKU(skuId);
+        // TODO: Implement deleteSKU method in supabase service
+        // const deleted = await supabase.deleteSKU(skuId);
         const deleted = false;
         if (!deleted) {
             res.status(404).json({ success: false, message: 'SKU not found' });
@@ -236,7 +236,7 @@ export async function deleteSKU(req: AuthRequest, res: Response): Promise<void> 
 // Get wholesale SKUs
 export async function getWholesaleSKUs(req: AuthRequest, res: Response): Promise<void> {
     try {
-        const wholesaleSKUs = await googleSheets.getWholesaleSKUs();
+        const wholesaleSKUs = await supabase.getWholesaleSKUs();
 
         res.json({
             success: true,
@@ -255,7 +255,7 @@ export async function getWholesaleSKUs(req: AuthRequest, res: Response): Promise
 // Get upcoming products
 export async function getUpcomingProducts(req: AuthRequest, res: Response): Promise<void> {
     try {
-        const upcomingProducts = await googleSheets.getUpcomingProducts();
+        const upcomingProducts = await supabase.getUpcomingProducts();
 
         res.json({
             success: true,
@@ -272,7 +272,7 @@ export async function createUpcomingProduct(req: AuthRequest, res: Response): Pr
     try {
         const productData = req.body;
 
-        const newProduct = await googleSheets.createUpcomingProduct(productData);
+        const newProduct = await supabase.createUpcomingProduct(productData);
 
         res.status(201).json({
             success: true,
@@ -292,7 +292,7 @@ export async function createUpcomingProduct(req: AuthRequest, res: Response): Pr
 // Get production videos
 export async function getProductionVideos(req: AuthRequest, res: Response): Promise<void> {
     try {
-        const videos = await googleSheets.getProductionVideos();
+        const videos = await supabase.getProductionVideos();
 
         res.json({
             success: true,
@@ -309,7 +309,7 @@ export async function createProductionVideo(req: AuthRequest, res: Response): Pr
     try {
         const videoData = req.body;
 
-        const newVideo = await googleSheets.createProductionVideo(videoData);
+        const newVideo = await supabase.createProductionVideo(videoData);
 
         res.status(201).json({
             success: true,

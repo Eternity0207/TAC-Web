@@ -1,7 +1,7 @@
 import { Response } from "express";
 import { AuthRequest } from "../middleware/auth";
 import { UserRole } from "../types";
-import * as sheets from "../services/googleSheets";
+import supabase from "../services/supabase";
 
 // Check if user can access intern features
 function canAccessIntern(req: AuthRequest): boolean {
@@ -24,7 +24,7 @@ export async function getInternAnalytics(
         }
 
         // Fetch all orders to compute daily stats
-        const orders = await sheets.getAllOrders();
+        const orders = await supabase.getAllOrders();
         const now = new Date();
         const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
@@ -91,7 +91,7 @@ export async function submitDailyReport(
             return;
         }
 
-        const report = await sheets.createDailyReport({
+        const report = await supabase.createDailyReport({
             userId: req.user!.id,
             userName: req.user!.name || req.user!.email,
             whatDid: whatDid || "",
@@ -116,7 +116,7 @@ export async function getDailyReports(
             return;
         }
 
-        const allReports = await sheets.getAllDailyReports();
+        const allReports = await supabase.getAllDailyReports();
 
         // Interns see only their own reports; admins see all
         const role = req.user?.role;
@@ -156,7 +156,7 @@ export async function createSalesEnquiry(
             return;
         }
 
-        const enquiry = await sheets.createSalesEnquiry({
+        const enquiry = await supabase.createSalesEnquiry({
             createdBy: req.user!.id,
             createdByName: req.user!.name || req.user!.email,
             personName,
@@ -188,7 +188,7 @@ export async function getSalesEnquiries(
             return;
         }
 
-        const allEnquiries = await sheets.getAllSalesEnquiries();
+        const allEnquiries = await supabase.getAllSalesEnquiries();
 
         // Interns see only their own; admins see all
         const role = req.user?.role;
@@ -220,7 +220,7 @@ export async function updateSalesEnquiry(
         const { id } = req.params;
         const updates = req.body;
 
-        const enquiry = await sheets.updateSalesEnquiry(id, updates);
+        const enquiry = await supabase.updateSalesEnquiry(id, updates);
         if (!enquiry) {
             res.status(404).json({ success: false, message: "Sales enquiry not found" });
             return;
@@ -236,8 +236,8 @@ export async function updateSalesEnquiry(
 // Get all interns
 export async function getAllInterns(req: AuthRequest, res: Response): Promise<void> {
     try {
-        // TODO: Implement getAllInterns method in googleSheets service
-        // const interns = await sheets.getAllInterns();
+        // TODO: Implement getAllInterns method in supabase service
+        // const interns = await supabase.getAllInterns();
         const interns: any[] = [];
 
         res.json({
