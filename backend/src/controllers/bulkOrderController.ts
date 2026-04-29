@@ -15,8 +15,16 @@ import {
   PaymentMode,
   OrderType,
   Order,
-  BulkOrder,
 } from "../types";
+
+interface BulkOrder extends Order {
+  prepaidStatus?: PaymentStatus | "PAID";
+  prepaidPaidAt?: string;
+  prepaidTxnId?: string;
+  creditStatus?: PaymentStatus | "PAID";
+  creditPaidAt?: string;
+  creditTxnId?: string;
+}
 
 // Check if user can create bulk orders (Admin, Head of Distribution, or Sales)
 function canCreateBulkOrders(req: AuthRequest): boolean {
