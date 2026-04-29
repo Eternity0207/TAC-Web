@@ -1161,9 +1161,7 @@ export async function uploadPaymentScreenshot(
       const screenshotUrl = `${config.uploadsUrl}/screenshots/${filename}`;
       await supabase.uploadPaymentScreenshot({
         orderId: id,
-        orderNumber: orderRes.orderNumber,
         base64Image: screenshotUrl, // Store full URL
-        mimeType: "",
       });
 
       res.json({
@@ -1178,9 +1176,7 @@ export async function uploadPaymentScreenshot(
         }/verified/${new Date().toISOString()}`;
       await supabase.uploadPaymentScreenshot({
         orderId: id,
-        orderNumber: orderRes.orderNumber,
         base64Image: verifiedUrl,
-        mimeType: "",
       });
 
       res.json({

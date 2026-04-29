@@ -15,6 +15,7 @@ import {
   PaymentMode,
   OrderType,
   Order,
+  BulkOrder,
 } from "../types";
 
 // Check if user can create bulk orders (Admin, Head of Distribution, or Sales)

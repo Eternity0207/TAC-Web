@@ -242,7 +242,7 @@ export async function updateAdminUser(id: string, updates: Partial<AdminUser>): 
 }
 
 export async function updateAdminLastLogin(id: string): Promise<void> {
-  await updateAdminUser(id, { lastLogin: new Date().toISOString() });
+  await updateAdminUser(id, { lastLoginAt: new Date().toISOString() });
 }
 
 export async function deleteAdminUser(id: string): Promise<boolean> {
