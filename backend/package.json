@@ -15,7 +15,8 @@
     "init-admin": "node -e \"require('dotenv').config(); const axios = require('axios'); const base=(process.env.BACKEND_URL || process.env.ADMIN_URL || 'https://admin.theawlacompany.com').replace(/\\/$/, ''); axios.post(base + '/auth/init').then(r => console.log(r.data)).catch(e => console.error(e.response?.data || e.message));\"",
     "smtp:test": "node scripts/smtp-test.js",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "migrate": "ts-node migration/run.ts"
+    "migrate": "ts-node migration/run.ts",
+    "apply-schema": "ts-node migration/applySchema.ts"
   },
   "keywords": [
     "oms",
@@ -44,6 +45,7 @@
     "pdfkit": "^0.15.0",
     "qrcode": "^1.5.3",
     "uuid": "^9.0.1",
+    "pg": "^8.11.0",
     "@supabase/supabase-js": "^2.57.4"
   },
   "devDependencies": {

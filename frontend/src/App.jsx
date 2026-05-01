@@ -7,6 +7,8 @@ import Home from './pages/Home';
 import Products from './pages/Products';
 import ProductDetail from './pages/ProductDetail';
 import Blog from './pages/Blog';
+import BlogPost from './pages/BlogPost';
+import BlogAdmin from './pages/BlogAdmin';
 import Team from './pages/Team';
 import Careers from './pages/Careers';
 import BulkEnquiry from './pages/BulkEnquiry';
@@ -35,6 +37,8 @@ function App() {
               <Route path="/products" element={<Products />} />
               <Route path="/products/:slug" element={<ProductDetail />} />
               <Route path="/blog" element={<Blog />} />
+              <Route path="/blog/:slug" element={<BlogPost />} />
+              <Route path="/blog-admin" element={<BlogAdmin />} />
               <Route path="/team" element={<Team />} />
               <Route path="/careers" element={<Careers />} />
               <Route path="/donation" element={<Donation />} />

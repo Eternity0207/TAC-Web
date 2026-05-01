@@ -30,6 +30,7 @@ import * as tagController from "../controllers/tagController";
 import * as productController from "../controllers/productController";
 import * as socialMediaController from "../controllers/socialMediaController";
 import * as donationController from "../controllers/donationController";
+import * as blogController from "../controllers/blogController";
 
 const router = Router();
 
@@ -112,6 +113,10 @@ router.get("/coupons/public", couponController.getValidCoupons);
 // Products - Public
 router.get("/products/public", productController.getPublicProducts);
 router.get("/products/public/:slug", productController.getProductBySlug);
+
+// Blogs - Public
+router.get("/blogs/public", blogController.getPublicBlogs);
+router.get("/blogs/public/:slug", blogController.getPublicBlogBySlug);
 
 // Donations - Public
 router.get("/donation/summary", donationController.getDonationSummary);
@@ -252,6 +257,12 @@ router.get("/products/all", authMiddleware, productController.getAllProducts); /
 router.post("/products", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), productController.createProduct);
 router.put("/products/:id", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), productController.updateProduct);
 router.delete("/products/:id", authMiddleware, authorize(UserRole.SUPER_ADMIN), productController.deleteProduct);
+
+// Blog Management
+router.get("/blogs", authMiddleware, blogController.getAllBlogs);
+router.post("/blogs", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), blogController.createBlog);
+router.put("/blogs/:id", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), blogController.updateBlog);
+router.delete("/blogs/:id", authMiddleware, authorize(UserRole.SUPER_ADMIN), blogController.deleteBlog);
 
 // Reviews Management
 router.get("/reviews/all", authMiddleware, reviewController.getAllReviews); // Fix for admin panel

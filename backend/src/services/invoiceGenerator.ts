@@ -52,6 +52,8 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
     const lightGray = "#666666";
     const bgLight = "#f8f9fa";
     const pageWidth = 515;
+    const companyName = "The Awla Foods Pvt Ltd";
+    const companyGstin = "08AAMCT9879P1ZV";
     const lines = normalizeInvoiceLines(order.products || []);
 
     const calculatedSubtotal = toMoney(
@@ -80,9 +82,11 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
     }
 
     doc.fontSize(24).fillColor("#ffffff").font("Helvetica-Bold");
-    doc.text("The Awla Company", 110, 30);
+    doc.text(companyName, 110, 30);
     doc.fontSize(10).fillColor("#e0e0e0").font("Helvetica");
     doc.text("Premium Amla Products | Royal Way to Stay Healthy", 110, 58);
+    doc.fontSize(9).fillColor("#e0e0e0").font("Helvetica");
+    doc.text(`GSTIN: ${companyGstin}`, 110, 72);
 
     doc.fontSize(12).fillColor("#ffffff").font("Helvetica-Bold");
     doc.text("INVOICE", 450, 35, { width: 100, align: "right" });
@@ -357,7 +361,7 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
     });
 
     doc.fontSize(9).fillColor(lightGray).font("Helvetica");
-    doc.text("The Awla Company - Royal Way to Stay Healthy", 40, footerY + 35, {
+    doc.text(`${companyName} - Royal Way to Stay Healthy`, 40, footerY + 35, {
       align: "center",
       width: pageWidth,
     });
@@ -395,6 +399,8 @@ export async function generateBulkInvoicePDF(order: any): Promise<Buffer> {
     const lightGray = "#666666";
     const bgLight = "#f8f9fa";
     const pageWidth = 515;
+    const companyName = "The Awla Foods Pvt Ltd";
+    const companyGstin = "08AAMCT9879P1ZV";
 
     const fmt = (amount: number) => `Rs. ${(amount || 0).toFixed(2)}`;
 
@@ -414,9 +420,11 @@ export async function generateBulkInvoicePDF(order: any): Promise<Buffer> {
     }
 
     doc.fontSize(24).fillColor("#ffffff").font("Helvetica-Bold");
-    doc.text("The Awla Company", 110, 30);
+    doc.text(companyName, 110, 30);
     doc.fontSize(10).fillColor("#e0e0e0").font("Helvetica");
     doc.text("Premium Amla Products | Royal Way to Stay Healthy", 110, 58);
+    doc.fontSize(9).fillColor("#e0e0e0").font("Helvetica");
+    doc.text(`GSTIN: ${companyGstin}`, 110, 72);
 
     doc.fontSize(12).fillColor("#ffffff").font("Helvetica-Bold");
     doc.text("BULK ORDER INVOICE", 420, 35, { width: 130, align: "right" });
@@ -701,7 +709,7 @@ export async function generateBulkInvoicePDF(order: any): Promise<Buffer> {
     });
 
     doc.fontSize(9).fillColor(lightGray).font("Helvetica");
-    doc.text("The Awla Company - Royal Way to Stay Healthy", 40, footerY + 35, {
+    doc.text(`${companyName} - Royal Way to Stay Healthy`, 40, footerY + 35, {
       align: "center",
       width: pageWidth,
     });

@@ -84,6 +84,16 @@ export const apiService = {
     getBySlug: (slug) => API.get(`/products/public/${slug}`),
   },
 
+  // Blogs
+  blogs: {
+    getPublic: () => API.get('/blogs/public'),
+    getBySlug: (slug) => API.get(`/blogs/public/${slug}`),
+    getAll: () => API.get('/blogs'),
+    create: (payload) => API.post('/blogs', payload),
+    update: (id, payload) => API.put(`/blogs/${id}`, payload),
+    delete: (id) => API.delete(`/blogs/${id}`),
+  },
+
   // Coupons (Public)
   coupons: {
     validate: ({ couponCode, subtotal }) => API.post('/coupons/validate', { couponCode, subtotal }),

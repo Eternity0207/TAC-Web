@@ -35,6 +35,7 @@ const tables: Record<string, TableConfig> = {
   applications: { table: "applications", getId: (r) => r.id || randomUUID() },
   products: { table: "products", getId: (r) => r.id || r.slug || randomUUID() },
   tags: { table: "tags", getId: (r) => r.id || r.slug || randomUUID() },
+  blogs: { table: "blogs", getId: (r) => r.id || randomUUID() },
   reviews: { table: "reviews", getId: (r) => r.id || randomUUID() },
   inventoryBatches: { table: "inventory_batches", getId: (r) => r.id || r.batchNumber || randomUUID() },
   skus: { table: "skus", getId: (r) => r.skuId || r.id || randomUUID() },
@@ -395,6 +396,16 @@ export async function callPostgresAction(action: string, payload: any = {}): Pro
       );
     }
 
+    case "getAllBlogs": return ok(await all("blogs"));
+    case "getPublicBlogs": {
+      const rows = await all("blogs");
+      return ok(rows.filter((r: any) => String(r.status || "").toUpperCase() === "PUBLISHED"));
+    }
+    case "getBlogBySlug": return ok(await findBy("blogs", "slug", payload.slug));
+    case "createBlog": return ok(await create("blogs", payload));
+    case "updateBlog": return ok(await updateById("blogs", payload.id, payload.updates || {}));
+    case "deleteBlog": await deleteRows(tables.blogs.table, { id: payload.id }); return ok(true);
+
     case "submitReview": return ok(await create("reviews", { ...payload, status: "PENDING" }));
     case "getApprovedReviews": {
       const rows = await all("reviews");
@@ -464,6 +475,7 @@ export async function seedFromActions(datasets: Record<string, any[]>) {
     applications: "applications",
     products: "products",
     tags: "tags",
+    blogs: "blogs",
     reviews: "reviews",
     inventoryBatches: "inventoryBatches",
     skus: "skus",
