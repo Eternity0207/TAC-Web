@@ -12,8 +12,17 @@ function required(name: string) {
 }
 
 async function main() {
-  const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
-  if (!dbUrl) throw new Error("Set DATABASE_URL (Postgres connection string) in your env before running this script");
+  const supabaseUrl = process.env.SUPABASE_URL;
+  if (!supabaseUrl) {
+    throw new Error("Missing env: SUPABASE_URL");
+  }
+
+  const dbUrl = supabaseUrl.trim();
+  if (!/^postgres(?:ql)?:\/\//i.test(dbUrl)) {
+    throw new Error(
+      "SUPABASE_URL is currently the HTTPS API URL, not a Postgres connection string. To apply backend/db/schema.sql you must run it against the Supabase database connection string (or create the table in Supabase SQL editor).",
+    );
+  }
 
   const schemaPath = path.resolve(__dirname, "../db/schema.sql");
   if (!fs.existsSync(schemaPath)) throw new Error(`schema file not found: ${schemaPath}`);

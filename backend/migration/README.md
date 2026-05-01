@@ -2,7 +2,6 @@ Migration and testing instructions
 
 Prerequisites
 - Node.js and npm installed
-- A Postgres connection string available as `DATABASE_URL` (or set `SUPABASE_DB_URL`)
 - `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` set in `backend/.env` for runtime
 
 Apply DB schema
@@ -15,14 +14,14 @@ npm install
 npm run apply-schema
 ```
 
-Notes: The script reads `backend/db/schema.sql` and applies it using the `DATABASE_URL` env var.
+Notes: `backend/migration/applySchema.ts` reads `SUPABASE_URL`. If that variable is your HTTPS API URL, the script will stop and tell you to use the Supabase SQL editor or a real Postgres connection string.
 
 Run the backend for local testing
 
 ```bash
 # from repo root
 cd backend
-# ensure .env has SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY and DATABASE_URL if needed
+# ensure .env has SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
 npm run dev
 ```
 
@@ -62,4 +61,4 @@ Verify invoice/GST changes
 - Company: The Awla Foods Pvt Ltd
 - GSTIN: 08AAMCT9879P1ZV
 
-If you want me to run these commands or apply the migration for you, grant access to your database or provide `DATABASE_URL` in a run request and I'll execute the migration locally.
+If you want me to run these commands or apply the migration for you, I need the actual Supabase Postgres connection string; `SUPABASE_URL` alone is only the REST/API base URL.
