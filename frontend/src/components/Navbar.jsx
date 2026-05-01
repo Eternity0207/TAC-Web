@@ -31,6 +31,10 @@ const Navbar = () => {
     { name: 'Bulk Enquiry', path: '/bulk-enquiry' },
   ];
 
+  const adminLinks = [
+    { name: 'Blog Admin', path: '/blog-admin', icon: '📝' },
+  ];
+
   const isHome = location.pathname === '/';
   const useGlass = isHome && !isScrolled;
 
@@ -198,6 +202,24 @@ const Navbar = () => {
                       </Link>
                     </motion.li>
                   ))}
+                  <motion.li
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: navLinks.length * 0.05 }}
+                    className="border-t border-gray-100 mt-2 pt-2"
+                  >
+                    <Link
+                      to="/blog-admin"
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`block rounded-xl px-4 py-3 text-base font-medium transition-all ${
+                        isActive('/blog-admin')
+                          ? 'bg-primary-50 text-primary'
+                          : 'text-gray-700 hover:bg-gray-50 hover:text-primary'
+                      }`}
+                    >
+                      📝 Blog Admin
+                    </Link>
+                  </motion.li>
                   <li className="mt-3 px-4">
                     <Link
                       to="/products"
