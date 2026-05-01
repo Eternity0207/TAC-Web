@@ -61,4 +61,8 @@ Verify invoice/GST changes
 - Company: The Awla Foods Pvt Ltd
 - GSTIN: 08AAMCT9879P1ZV
 
+Supabase SQL fallback
+
+If you prefer to create the blogs table manually in Supabase, open `backend/migration/create-blogs-table.sql` and paste it into the SQL editor.
+
 If you want me to run these commands or apply the migration for you, I need the actual Supabase Postgres connection string; `SUPABASE_URL` alone is only the REST/API base URL.
