@@ -35,7 +35,10 @@ import inventoryRepo, {
   calculateAndReleaseEarnings as pgCalculateAndReleaseEarnings,
 } from "../repos/inventory";
 
-const usePostgres = true;
+// Inventory data in this project is primarily stored through the generic
+// action repository shape (id + data JSON rows). Keeping direct table mode
+// disabled avoids runtime 500 errors when column-based tables are unavailable.
+const usePostgres = false;
 
 export interface InventoryBatch {
   id: string;

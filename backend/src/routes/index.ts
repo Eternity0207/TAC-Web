@@ -336,7 +336,12 @@ router.get("/team/earnings", authMiddleware, authorize(UserRole.ADMIN, UserRole.
 // router.delete("/skus/:id", authMiddleware, authorize(UserRole.SUPER_ADMIN), productController.deleteSKU);
 
 // Wholesale SKU Management
-// router.get("/wholesale-skus", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), productController.getWholesaleSKUs);
+router.get(
+  "/wholesale-skus",
+  authMiddleware,
+  authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  productController.getWholesaleSKUs,
+);
 
 // Commission Settings
 // router.get("/commission-settings", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.HEAD_DISTRIBUTION), configController.getCommissionSettings);
