@@ -145,14 +145,14 @@ export async function sendPaymentQREmail(order: Order, qrCodeBase64: string): Pr
 export async function sendInvoiceEmail(order: Order, invoicePdf: Buffer): Promise<void> {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      <h2 style="color: #4a7c23;">Your Invoice from The Awla Foods Pvt Ltd</h2>
+      <h2 style="color: #4a7c23;">Your Invoice from The Awla Company Pvt Ltd</h2>
       <p>Dear ${order.customerName},</p>
       <p>Please find attached the invoice for your order <strong>${order.orderNumber}</strong>.</p>
       <p><strong>Invoice Number:</strong> ${order.invoiceNumber}</p>
       <p><strong>Total Amount:</strong> Rs. ${order.totalAmount.toFixed(2)}</p>
       <p>Thank you for your purchase!</p>
       <div style="margin-top: 24px; color: #888; font-size: 0.85em;">
-        <p>The Awla Foods Pvt Ltd - Royal Way to Stay Healthy</p>
+        <p>The Awla Company Pvt Ltd - Royal Way to Stay Healthy</p>
       </div>
     </div>
   `;
@@ -160,7 +160,7 @@ export async function sendInvoiceEmail(order: Order, invoicePdf: Buffer): Promis
   await transporter.sendMail({
     from: config.email.from,
     to: order.customerEmail,
-    subject: `Invoice ${order.invoiceNumber} - The Awla Foods Pvt Ltd`,
+    subject: `Invoice ${order.invoiceNumber} - The Awla Company Pvt Ltd`,
     html,
     attachments: [{
       filename: `Invoice-${order.invoiceNumber}.pdf`,

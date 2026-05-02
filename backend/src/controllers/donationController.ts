@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
 import supabase from "../services/supabase";
+import fs from "fs";
+import path from "path";
+import { AuthRequest } from '../middleware/auth';
 
 type DonationConfig = {
     amountPerOrder?: number;
@@ -10,6 +13,14 @@ type DonationConfig = {
     lastDonationAmount?: number;
     lastDonationOrdersCovered?: number;
     eligibleOrderStatuses?: string[];
+    photos?: DonationPhoto[];
+};
+
+type DonationPhoto = {
+    id: string;
+    url: string;
+    caption?: string;
+    uploadedAt: string;
 };
 
 type DonationSummary = {
@@ -23,6 +34,7 @@ type DonationSummary = {
     lastDonationNote: string;
     lastDonationAmount: number | null;
     lastDonationOrdersCovered: number | null;
+    photos: DonationPhoto[];
     generatedAt: string;
 };
 
@@ -65,6 +77,7 @@ function normalizeConfig(raw: unknown): DonationConfig {
         eligibleOrderStatuses: Array.isArray(cfg.eligibleOrderStatuses)
             ? cfg.eligibleOrderStatuses.map((status) => normalizeStatus(status)).filter(Boolean)
             : undefined,
+        photos: Array.isArray(cfg.photos) ? cfg.photos : [],
     };
 }
 
@@ -113,6 +126,7 @@ export async function getDonationSummary(_req: Request, res: Response): Promise<
             lastDonationNote: donationConfig.lastDonationNote || '',
             lastDonationAmount: donationConfig.lastDonationAmount || null,
             lastDonationOrdersCovered: donationConfig.lastDonationOrdersCovered || null,
+            photos: Array.isArray(donationConfig.photos) ? donationConfig.photos : [],
             generatedAt: new Date().toISOString(),
         };
 
@@ -129,6 +143,137 @@ export async function getDonationSummary(_req: Request, res: Response): Promise<
     }
 }
 
+// Protected: Upload donation photo
+export async function uploadDonationPhoto(req: AuthRequest, res: Response): Promise<void> {
+    try {
+        const { base64Image, mimeType, caption } = req.body;
+
+        if (!base64Image) {
+            res.status(400).json({ success: false, message: 'Image data is required' });
+            return;
+        }
+
+        // Size check (~10MB)
+        const maxBase64Size = 13.3 * 1024 * 1024;
+        if (base64Image.length > maxBase64Size) {
+            res.status(400).json({ success: false, message: 'Image must be less than 10MB' });
+            return;
+        }
+
+        // Create donation photos directory
+        const uploadsDir = path.join(__dirname, '../../uploads/donation-photos');
+        if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+
+        // Save file
+        const ext = mimeType?.includes('jpeg') || mimeType?.includes('jpg') ? 'jpg' : 'png';
+        const photoId = `dp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const filename = `${photoId}.${ext}`;
+        const filepath = path.join(uploadsDir, filename);
+        const buffer = Buffer.from(base64Image, 'base64');
+        fs.writeFileSync(filepath, buffer);
+
+        // Build photo URL
+        const { config } = await import('../config');
+        const photoUrl = `${config.uploadsUrl}/donation-photos/${filename}`;
+
+        // Load current config, append photo, save
+        const donationConfigRaw = await supabase.getConfig('donation_campaign');
+        const donationConfig = normalizeConfig(donationConfigRaw);
+        const photos: DonationPhoto[] = Array.isArray(donationConfig.photos) ? donationConfig.photos : [];
+
+        const newPhoto: DonationPhoto = {
+            id: photoId,
+            url: photoUrl,
+            caption: String(caption || '').trim(),
+            uploadedAt: new Date().toISOString(),
+        };
+        photos.push(newPhoto);
+
+        // Save updated config
+        await supabase.setConfig('donation_campaign', {
+            ...(donationConfigRaw && typeof donationConfigRaw === 'object' ? donationConfigRaw : {}),
+            photos,
+        });
+
+        res.json({
+            success: true,
+            message: 'Donation photo uploaded',
+            data: newPhoto,
+        });
+    } catch (error) {
+        console.error('Upload donation photo error:', error);
+        res.status(500).json({ success: false, message: 'Failed to upload donation photo' });
+    }
+}
+
+// Protected: Delete donation photo
+export async function deleteDonationPhoto(req: AuthRequest, res: Response): Promise<void> {
+    try {
+        const { photoId } = req.params;
+        if (!photoId) {
+            res.status(400).json({ success: false, message: 'Photo ID is required' });
+            return;
+        }
+
+        // Load config
+        const donationConfigRaw = await supabase.getConfig('donation_campaign');
+        const donationConfig = normalizeConfig(donationConfigRaw);
+        const photos: DonationPhoto[] = Array.isArray(donationConfig.photos) ? donationConfig.photos : [];
+
+        const photoIndex = photos.findIndex((p) => p.id === photoId);
+        if (photoIndex === -1) {
+            res.status(404).json({ success: false, message: 'Photo not found' });
+            return;
+        }
+
+        // Try to delete file from disk
+        const photo = photos[photoIndex];
+        try {
+            const urlParts = photo.url.split('/donation-photos/');
+            if (urlParts.length > 1) {
+                const filename = urlParts[1];
+                const filepath = path.join(__dirname, '../../uploads/donation-photos', filename);
+                if (fs.existsSync(filepath)) {
+                    fs.unlinkSync(filepath);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to delete photo file:', e);
+        }
+
+        // Remove from config
+        photos.splice(photoIndex, 1);
+        await supabase.setConfig('donation_campaign', {
+            ...(donationConfigRaw && typeof donationConfigRaw === 'object' ? donationConfigRaw : {}),
+            photos,
+        });
+
+        res.json({ success: true, message: 'Donation photo deleted' });
+    } catch (error) {
+        console.error('Delete donation photo error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete donation photo' });
+    }
+}
+
+// Protected: Get all donation photos (admin)
+export async function getDonationPhotos(req: AuthRequest, res: Response): Promise<void> {
+    try {
+        const donationConfigRaw = await supabase.getConfig('donation_campaign');
+        const donationConfig = normalizeConfig(donationConfigRaw);
+        const photos: DonationPhoto[] = Array.isArray(donationConfig.photos) ? donationConfig.photos : [];
+
+        res.json({ success: true, data: photos });
+    } catch (error) {
+        console.error('Get donation photos error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get donation photos' });
+    }
+}
+
 export default {
     getDonationSummary,
+    uploadDonationPhoto,
+    deleteDonationPhoto,
+    getDonationPhotos,
 };

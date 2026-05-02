@@ -372,6 +372,11 @@ router.post("/production-videos", authMiddleware, authorize(UserRole.ADMIN, User
 router.put("/production-videos/:id", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), launchController.updateProductionVideo);
 router.delete("/production-videos/:id", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), launchController.deleteProductionVideo);
 
+// Donation Management
+router.get("/donation/photos", authMiddleware, donationController.getDonationPhotos);
+router.post("/donation/photos", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), donationController.uploadDonationPhoto);
+router.delete("/donation/photos/:photoId", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN), donationController.deleteDonationPhoto);
+
 // Staff Management
 router.get("/staff/list", authMiddleware, userController.getStaffList);
 router.get("/staff/performance", authMiddleware, authorize(UserRole.ADMIN, UserRole.SUPER_ADMIN, UserRole.HEAD_DISTRIBUTION), userController.getStaffPerformance);

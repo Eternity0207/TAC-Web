@@ -51,7 +51,7 @@ const Footer = () => {
               </div>
               <div className="flex items-start gap-3">
                 <i className="fas fa-phone-alt mt-0.5 text-accent-400" />
-                <a href="tel:+919653904820" className="hover:text-white transition-colors">+91 96539 04820</a>
+                <a href="tel:+919664161773" className="hover:text-white transition-colors">+91 96641 61773</a>
               </div>
               <div className="flex items-start gap-3">
                 <i className="fas fa-envelope mt-0.5 text-accent-400" />
@@ -68,7 +68,7 @@ const Footer = () => {
                 { href: 'https://www.linkedin.com/company/the-awla-company/', icon: 'fab fa-linkedin-in', label: 'LinkedIn' },
                 { href: 'https://www.facebook.com/people/The-Awla-Company/61586226441354/', icon: 'fab fa-facebook-f', label: 'Facebook' },
                 { href: 'https://www.instagram.com/theawlacompany', icon: 'fab fa-instagram', label: 'Instagram' },
-                { href: 'https://wa.me/919653904820', icon: 'fab fa-whatsapp', label: 'WhatsApp' },
+                { href: 'https://wa.me/919664161773', icon: 'fab fa-whatsapp', label: 'WhatsApp' },
               ].map(social => (
                 <a
                   key={social.label}

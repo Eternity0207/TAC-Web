@@ -830,6 +830,7 @@ export default {
   // Config
   getConfig,
   updateConfig,
+  setConfig: updateConfig,
   getSKUs,
   updateSKUPricing,
   // Sales Stats

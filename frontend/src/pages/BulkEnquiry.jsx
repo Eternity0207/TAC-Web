@@ -241,8 +241,8 @@ const BulkEnquiry = () => {
                 <p className="text-primary-100 text-sm mb-4">
                   Talk to our team for urgent requirements.
                 </p>
-                <a href="tel:+919653904820" className="inline-flex items-center justify-center w-full rounded-xl bg-white text-primary font-semibold py-2.5 px-4 hover:bg-primary-50 transition-colors">
-                  +91 96539 04820
+                <a href="tel:+919664161773" className="inline-flex items-center justify-center w-full rounded-xl bg-white text-primary font-semibold py-2.5 px-4 hover:bg-primary-50 transition-colors">
+                  +91 96641 61773
                 </a>
               </div>
 
