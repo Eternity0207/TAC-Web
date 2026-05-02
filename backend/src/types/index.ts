@@ -73,6 +73,7 @@ export interface Order {
   customerName: string;
   customerEmail: string;
   customerPhone: string;
+  gstNumber?: string;
   addressLine1: string;
   addressLine2?: string;
   city: string;

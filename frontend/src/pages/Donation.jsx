@@ -1,5 +1,5 @@
 import { Helmet } from 'react-helmet-async';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiService } from '../services/api';
 
@@ -51,6 +51,14 @@ const Donation = () => {
   const lastDonationAmount = Number(summary?.lastDonationAmount || 0);
   const lastDonationOrdersCovered = Number(summary?.lastDonationOrdersCovered || 0);
   const photos = Array.isArray(summary?.photos) ? summary.photos : [];
+  const sortedPhotos = useMemo(
+    () =>
+      [...photos].sort(
+        (a, b) =>
+          new Date(b?.uploadedAt || 0).getTime() - new Date(a?.uploadedAt || 0).getTime()
+      ),
+    [photos]
+  );
 
   return (
     <>
@@ -151,7 +159,7 @@ const Donation = () => {
               )}
 
               {/* Donation Photos Grid */}
-              {photos.length > 0 ? (
+              {sortedPhotos.length > 0 ? (
                 <motion.div
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -163,7 +171,7 @@ const Donation = () => {
                     Here's how your purchases help provide cow fodder and support animal welfare.
                   </p>
                   <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:gap-4">
-                    {photos.map((photo, index) => (
+                    {sortedPhotos.map((photo, index) => (
                       <motion.div
                         key={photo.id || index}
                         initial={{ opacity: 0, scale: 0.92 }}

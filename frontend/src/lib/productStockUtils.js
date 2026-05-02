@@ -1,4 +1,5 @@
 const normalizeStatus = (value) => String(value || '').trim().toUpperCase();
+const LOW_STOCK_THRESHOLD = 10;
 
 const parseQuantity = (value) => {
   const numeric = Number(value);
@@ -9,9 +10,11 @@ const parseQuantity = (value) => {
 export const getProductStockInfo = (product, variant = null) => {
   const status = normalizeStatus(variant?.stockStatus || product?.stockStatus);
   const quantityLeft = parseQuantity(
+    variant?.stock ??
     variant?.stockQuantity ??
       variant?.inventoryQuantity ??
       variant?.remainingQuantity ??
+      product?.stock ??
       product?.stockQuantity ??
       product?.inventoryQuantity ??
       product?.remainingQuantity
@@ -22,7 +25,8 @@ export const getProductStockInfo = (product, variant = null) => {
     status === 'DEPLETED' ||
     (quantityLeft !== null && quantityLeft <= 0);
 
-  const hasLimitedStock = !isOutOfStock && quantityLeft !== null;
+  const hasLimitedStock =
+    !isOutOfStock && quantityLeft !== null && quantityLeft <= LOW_STOCK_THRESHOLD;
   const shouldShow = isOutOfStock || hasLimitedStock;
 
   return {

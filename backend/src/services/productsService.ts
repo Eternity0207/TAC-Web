@@ -11,6 +11,7 @@ export interface ProductVariant {
     weight: string;
     price: number;
     mrp: number;
+    stock?: number;
     weightValue?: number;
     weightUnit?: string;
     stockStatus?: string;
@@ -31,6 +32,7 @@ export interface Product {
     isFeatured: boolean;
     isActive: boolean;
     displayOrder: number;
+    stock?: number;
     stockStatus?: string;
     stockQuantity?: number;
     createdAt: string;
@@ -54,6 +56,24 @@ function normalizeProduct<T extends any>(product: T): T {
     if (!product || typeof product !== 'object') return product;
     const data: any = { ...product };
     data.variants = parseVariants((product as any).variants);
+    data.variants = data.variants.map((variant: any) => {
+        if (!variant || typeof variant !== 'object') return variant;
+        const mapped = { ...variant };
+        if (mapped.stockQuantity == null && mapped.stock != null) {
+            mapped.stockQuantity = mapped.stock;
+        }
+        if (!mapped.stockStatus && typeof mapped.stockQuantity === 'number') {
+            mapped.stockStatus = mapped.stockQuantity <= 0 ? 'OUT_OF_STOCK' : 'IN_STOCK';
+        }
+        return mapped;
+    });
+
+    if (data.stockQuantity == null && data.stock != null) {
+        data.stockQuantity = data.stock;
+    }
+    if (!data.stockStatus && typeof data.stockQuantity === 'number') {
+        data.stockStatus = data.stockQuantity <= 0 ? 'OUT_OF_STOCK' : 'IN_STOCK';
+    }
 
     if (typeof data.galleryImages === 'string') {
         try {

@@ -11,6 +11,10 @@ type InvoiceLine = {
   totalPrice: number;
 };
 
+const COMPANY_NAME = "The Awla Company Pvt Ltd";
+const COMPANY_GSTIN = "08AAMCT9879P1ZV";
+const COMPANY_PHONE = "+91 96641 61773";
+
 function toMoney(value: unknown): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed < 0) return 0;
@@ -52,8 +56,8 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
     const lightGray = "#666666";
     const bgLight = "#f8f9fa";
     const pageWidth = 515;
-    const companyName = "The Awla Company Pvt Ltd";
-    const companyGstin = "08AAMCT9879P1ZV";
+    const companyName = COMPANY_NAME;
+    const companyGstin = COMPANY_GSTIN;
     const lines = normalizeInvoiceLines(order.products || []);
 
     const calculatedSubtotal = toMoney(
@@ -87,7 +91,7 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
     doc.text("Premium Amla Products | Royal Way to Stay Healthy", 110, 55);
     doc.fontSize(9).fillColor("#e0e0e0").font("Helvetica");
     doc.text(`GSTIN: ${companyGstin}`, 110, 68);
-    doc.text("Phone: +91 96641 61773", 110, 80);
+    doc.text(`Phone: ${COMPANY_PHONE}`, 110, 80);
 
     doc.fontSize(12).fillColor("#ffffff").font("Helvetica-Bold");
     doc.text("INVOICE", 450, 35, { width: 100, align: "right" });
@@ -120,6 +124,9 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
         450,
         142,
       );
+
+    doc.fontSize(8).fillColor(lightGray).font("Helvetica");
+    doc.text(`Company GSTIN: ${companyGstin}`, 55, 160, { width: 220 });
 
     // ===== BILLING DETAILS =====
     const billY = 200;
@@ -167,6 +174,14 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
     doc.text(`Email: ${String(order.customerEmail || "")}`, 55, billTextY, {
       width: maxAddrWidth,
     });
+    billTextY += lineHeight;
+
+    const customerGstin = String((order as any).gstNumber || "").trim();
+    if (customerGstin) {
+      doc.text(`GSTIN: ${customerGstin}`, 55, billTextY, {
+        width: maxAddrWidth,
+      });
+    }
 
     doc.fontSize(10).fillColor(primaryColor).font("Helvetica-Bold");
     doc.text("SHIP TO", 320, billY);
@@ -367,7 +382,7 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
       width: pageWidth,
     });
     doc.text(
-      "Phone: +91 96641 61773 | Email: orders@theawlacompany.com | Web: theawlacompany.com",
+      `Phone: ${COMPANY_PHONE} | Email: orders@theawlacompany.com | Web: theawlacompany.com`,
       40,
       footerY + 50,
       { align: "center", width: pageWidth },
@@ -400,8 +415,8 @@ export async function generateBulkInvoicePDF(order: any): Promise<Buffer> {
     const lightGray = "#666666";
     const bgLight = "#f8f9fa";
     const pageWidth = 515;
-    const companyName = "The Awla Company Pvt Ltd";
-    const companyGstin = "08AAMCT9879P1ZV";
+    const companyName = COMPANY_NAME;
+    const companyGstin = COMPANY_GSTIN;
 
     const fmt = (amount: number) => `Rs. ${(amount || 0).toFixed(2)}`;
 
@@ -426,7 +441,7 @@ export async function generateBulkInvoicePDF(order: any): Promise<Buffer> {
     doc.text("Premium Amla Products | Royal Way to Stay Healthy", 110, 55);
     doc.fontSize(9).fillColor("#e0e0e0").font("Helvetica");
     doc.text(`GSTIN: ${companyGstin}`, 110, 68);
-    doc.text("Phone: +91 96641 61773", 110, 80);
+    doc.text(`Phone: ${COMPANY_PHONE}`, 110, 80);
 
     doc.fontSize(12).fillColor("#ffffff").font("Helvetica-Bold");
     doc.text("BULK ORDER INVOICE", 420, 35, { width: 130, align: "right" });
@@ -716,7 +731,7 @@ export async function generateBulkInvoicePDF(order: any): Promise<Buffer> {
       width: pageWidth,
     });
     doc.text(
-      "Phone: +91 96641 61773 | Email: orders@theawlacompany.com | Web: theawlacompany.com",
+      `Phone: ${COMPANY_PHONE} | Email: orders@theawlacompany.com | Web: theawlacompany.com`,
       40,
       footerY + 50,
       { align: "center", width: pageWidth },
