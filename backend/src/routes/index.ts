@@ -374,6 +374,7 @@ router.delete("/production-videos/:id", authMiddleware, authorize(UserRole.ADMIN
 
 // Donation Management
 router.get("/donation/photos", authMiddleware, donationController.getDonationPhotos);
+router.get("/donation/videos", authMiddleware, donationController.getDonationVideos);
 router.post(
   "/donation/photos",
   authMiddleware,
@@ -384,6 +385,16 @@ router.post(
   ),
   donationController.uploadDonationPhoto,
 );
+router.post(
+  "/donation/videos",
+  authMiddleware,
+  authorize(
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN,
+    UserRole.HEAD_DISTRIBUTION,
+  ),
+  donationController.uploadDonationVideo,
+);
 router.delete(
   "/donation/photos/:photoId",
   authMiddleware,
@@ -393,6 +404,16 @@ router.delete(
     UserRole.HEAD_DISTRIBUTION,
   ),
   donationController.deleteDonationPhoto,
+);
+router.delete(
+  "/donation/videos/:videoId",
+  authMiddleware,
+  authorize(
+    UserRole.ADMIN,
+    UserRole.SUPER_ADMIN,
+    UserRole.HEAD_DISTRIBUTION,
+  ),
+  donationController.deleteDonationVideo,
 );
 
 // Staff Management

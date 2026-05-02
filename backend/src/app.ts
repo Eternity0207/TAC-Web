@@ -7,6 +7,7 @@ import { config } from './config';
 const app = express();
 const dashboardPublicDir = path.join(__dirname, '../public');
 const dashboardIndexFile = path.join(dashboardPublicDir, 'index.html');
+const uploadsDir = path.join(__dirname, '../uploads');
 
 function normalizeOrigin(value: string): string {
   try {
@@ -85,6 +86,11 @@ app.use('/api', (_req, res) => {
 });
 
 app.use(express.static(dashboardPublicDir));
+app.use('/uploads', express.static(uploadsDir));
+
+app.get('/donation-manager', (_req, res) => {
+  return res.sendFile(path.join(dashboardPublicDir, 'donation-manager.html'));
+});
 
 app.get('/{*spaPath}', (_req, res) => {
   return res.sendFile(dashboardIndexFile);

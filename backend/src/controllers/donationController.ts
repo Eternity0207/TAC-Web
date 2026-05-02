@@ -14,9 +14,17 @@ type DonationConfig = {
     lastDonationOrdersCovered?: number;
     eligibleOrderStatuses?: string[];
     photos?: DonationPhoto[];
+    videos?: DonationVideo[];
 };
 
 type DonationPhoto = {
+    id: string;
+    url: string;
+    caption?: string;
+    uploadedAt: string;
+};
+
+type DonationVideo = {
     id: string;
     url: string;
     caption?: string;
@@ -35,6 +43,7 @@ type DonationSummary = {
     lastDonationAmount: number | null;
     lastDonationOrdersCovered: number | null;
     photos: DonationPhoto[];
+    videos: DonationVideo[];
     generatedAt: string;
 };
 
@@ -78,6 +87,7 @@ function normalizeConfig(raw: unknown): DonationConfig {
             ? cfg.eligibleOrderStatuses.map((status) => normalizeStatus(status)).filter(Boolean)
             : undefined,
         photos: Array.isArray(cfg.photos) ? cfg.photos : [],
+        videos: Array.isArray(cfg.videos) ? cfg.videos : [],
     };
 }
 
@@ -127,6 +137,7 @@ export async function getDonationSummary(_req: Request, res: Response): Promise<
             lastDonationAmount: donationConfig.lastDonationAmount || null,
             lastDonationOrdersCovered: donationConfig.lastDonationOrdersCovered || null,
             photos: Array.isArray(donationConfig.photos) ? donationConfig.photos : [],
+            videos: Array.isArray(donationConfig.videos) ? donationConfig.videos : [],
             generatedAt: new Date().toISOString(),
         };
 
@@ -140,6 +151,12 @@ export async function getDonationSummary(_req: Request, res: Response): Promise<
             success: false,
             message: 'Unable to load donation summary right now',
         });
+    }
+}
+
+function ensureDir(dirPath: string): void {
+    if (!fs.existsSync(dirPath)) {
+        fs.mkdirSync(dirPath, { recursive: true });
     }
 }
 
@@ -162,9 +179,7 @@ export async function uploadDonationPhoto(req: AuthRequest, res: Response): Prom
 
         // Create donation photos directory
         const uploadsDir = path.join(__dirname, '../../uploads/donation-photos');
-        if (!fs.existsSync(uploadsDir)) {
-            fs.mkdirSync(uploadsDir, { recursive: true });
-        }
+        ensureDir(uploadsDir);
 
         // Save file
         const ext = mimeType?.includes('jpeg') || mimeType?.includes('jpg') ? 'jpg' : 'png';
@@ -205,6 +220,69 @@ export async function uploadDonationPhoto(req: AuthRequest, res: Response): Prom
     } catch (error) {
         console.error('Upload donation photo error:', error);
         res.status(500).json({ success: false, message: 'Failed to upload donation photo' });
+    }
+}
+
+// Protected: Upload donation video
+export async function uploadDonationVideo(req: AuthRequest, res: Response): Promise<void> {
+    try {
+        const { base64Video, mimeType, caption } = req.body;
+
+        if (!base64Video) {
+            res.status(400).json({ success: false, message: 'Video data is required' });
+            return;
+        }
+
+        // Size check (~50MB)
+        const maxBase64Size = 66.7 * 1024 * 1024;
+        if (base64Video.length > maxBase64Size) {
+            res.status(400).json({ success: false, message: 'Video must be less than 50MB' });
+            return;
+        }
+
+        const uploadsDir = path.join(__dirname, '../../uploads/donation-videos');
+        ensureDir(uploadsDir);
+
+        const normalizedMime = String(mimeType || '').toLowerCase();
+        const ext = normalizedMime.includes('quicktime')
+            ? 'mov'
+            : normalizedMime.includes('webm')
+                ? 'webm'
+                : 'mp4';
+        const videoId = `dv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const filename = `${videoId}.${ext}`;
+        const filepath = path.join(uploadsDir, filename);
+        const buffer = Buffer.from(base64Video, 'base64');
+        fs.writeFileSync(filepath, buffer);
+
+        const { config } = await import('../config');
+        const videoUrl = `${config.uploadsUrl}/donation-videos/${filename}`;
+
+        const donationConfigRaw = await supabase.getConfig('donation_campaign');
+        const donationConfig = normalizeConfig(donationConfigRaw);
+        const videos: DonationVideo[] = Array.isArray(donationConfig.videos) ? donationConfig.videos : [];
+
+        const newVideo: DonationVideo = {
+            id: videoId,
+            url: videoUrl,
+            caption: String(caption || '').trim(),
+            uploadedAt: new Date().toISOString(),
+        };
+        videos.push(newVideo);
+
+        await supabase.setConfig('donation_campaign', {
+            ...(donationConfigRaw && typeof donationConfigRaw === 'object' ? donationConfigRaw : {}),
+            videos,
+        });
+
+        res.json({
+            success: true,
+            message: 'Donation video uploaded',
+            data: newVideo,
+        });
+    } catch (error) {
+        console.error('Upload donation video error:', error);
+        res.status(500).json({ success: false, message: 'Failed to upload donation video' });
     }
 }
 
@@ -257,6 +335,52 @@ export async function deleteDonationPhoto(req: AuthRequest, res: Response): Prom
     }
 }
 
+// Protected: Delete donation video
+export async function deleteDonationVideo(req: AuthRequest, res: Response): Promise<void> {
+    try {
+        const { videoId } = req.params;
+        if (!videoId) {
+            res.status(400).json({ success: false, message: 'Video ID is required' });
+            return;
+        }
+
+        const donationConfigRaw = await supabase.getConfig('donation_campaign');
+        const donationConfig = normalizeConfig(donationConfigRaw);
+        const videos: DonationVideo[] = Array.isArray(donationConfig.videos) ? donationConfig.videos : [];
+
+        const videoIndex = videos.findIndex((v) => v.id === videoId);
+        if (videoIndex === -1) {
+            res.status(404).json({ success: false, message: 'Video not found' });
+            return;
+        }
+
+        const video = videos[videoIndex];
+        try {
+            const urlParts = video.url.split('/donation-videos/');
+            if (urlParts.length > 1) {
+                const filename = urlParts[1];
+                const filepath = path.join(__dirname, '../../uploads/donation-videos', filename);
+                if (fs.existsSync(filepath)) {
+                    fs.unlinkSync(filepath);
+                }
+            }
+        } catch (e) {
+            console.error('Failed to delete video file:', e);
+        }
+
+        videos.splice(videoIndex, 1);
+        await supabase.setConfig('donation_campaign', {
+            ...(donationConfigRaw && typeof donationConfigRaw === 'object' ? donationConfigRaw : {}),
+            videos,
+        });
+
+        res.json({ success: true, message: 'Donation video deleted' });
+    } catch (error) {
+        console.error('Delete donation video error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete donation video' });
+    }
+}
+
 // Protected: Get all donation photos (admin)
 export async function getDonationPhotos(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -271,9 +395,26 @@ export async function getDonationPhotos(req: AuthRequest, res: Response): Promis
     }
 }
 
+// Protected: Get all donation videos (admin)
+export async function getDonationVideos(req: AuthRequest, res: Response): Promise<void> {
+    try {
+        const donationConfigRaw = await supabase.getConfig('donation_campaign');
+        const donationConfig = normalizeConfig(donationConfigRaw);
+        const videos: DonationVideo[] = Array.isArray(donationConfig.videos) ? donationConfig.videos : [];
+
+        res.json({ success: true, data: videos });
+    } catch (error) {
+        console.error('Get donation videos error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get donation videos' });
+    }
+}
+
 export default {
     getDonationSummary,
     uploadDonationPhoto,
+    uploadDonationVideo,
     deleteDonationPhoto,
+    deleteDonationVideo,
     getDonationPhotos,
+    getDonationVideos,
 };

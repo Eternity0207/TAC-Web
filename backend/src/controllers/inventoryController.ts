@@ -6,6 +6,7 @@ import inventoryService, {
   InventoryBatch,
   InventoryStats,
 } from "../services/inventoryService";
+import * as productsService from "../services/productsService";
 
 // Re-export interfaces for external use
 export { InventoryBatch, InventoryStats };
@@ -18,6 +19,74 @@ function canManageInventory(req: AuthRequest): boolean {
     role === UserRole.ADMIN ||
     role === UserRole.HEAD_DISTRIBUTION
   );
+}
+
+function normalizePackagingKey(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "");
+}
+
+async function syncProductStockFromInventory(productId: string): Promise<void> {
+  const normalizedProductId = String(productId || "").trim();
+  if (!normalizedProductId) return;
+
+  try {
+    const [productRows, activeBatchResult] = await Promise.all([
+      productsService.getAllProducts(),
+      inventoryService.getAllBatches({
+        productId: normalizedProductId,
+        status: "ACTIVE",
+      }),
+    ]);
+
+    if (!activeBatchResult.success) {
+      throw new Error(activeBatchResult.message || "Failed to fetch inventory batches");
+    }
+
+    const product = (productRows || []).find((p: any) => {
+      const pid = String(p?.id || "").trim();
+      const pslug = String(p?.slug || "").trim();
+      return pid === normalizedProductId || pslug === normalizedProductId;
+    });
+
+    if (!product) return;
+
+    const activeBatches = activeBatchResult.data || [];
+    const variantStockMap = new Map<string, number>();
+    let totalRemaining = 0;
+
+    for (const batch of activeBatches) {
+      const qty = Math.max(0, Number(batch?.remainingQuantity || 0));
+      const packagingKey = normalizePackagingKey(batch?.packaging);
+      totalRemaining += qty;
+      if (packagingKey) {
+        variantStockMap.set(packagingKey, (variantStockMap.get(packagingKey) || 0) + qty);
+      }
+    }
+
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    const updatedVariants = variants.map((variant: any) => {
+      const key = normalizePackagingKey(variant?.weight || variant?.variant || variant?.size);
+      const variantQty = key ? variantStockMap.get(key) || 0 : 0;
+      return {
+        ...variant,
+        stock: variantQty,
+        stockQuantity: variantQty,
+        stockStatus: variantQty <= 0 ? "OUT_OF_STOCK" : "IN_STOCK",
+      };
+    });
+
+    await productsService.updateProduct(String(product.id), {
+      variants: updatedVariants as any,
+      stock: totalRemaining,
+      stockQuantity: totalRemaining,
+      stockStatus: totalRemaining <= 0 ? "OUT_OF_STOCK" : "IN_STOCK",
+    } as any);
+  } catch (error) {
+    console.error("Inventory stock sync warning:", error);
+  }
 }
 
 /**
@@ -74,6 +143,7 @@ export async function createBatch(
       message: "Batch created successfully",
       data: result.data,
     });
+    await syncProductStockFromInventory(String(result.data?.productId || productId));
   } catch (error: any) {
     console.error("Create batch error:", error);
     res.status(500).json({ success: false, message: "Failed to create batch" });
@@ -232,6 +302,7 @@ export async function updateBatch(
 
     const { id } = req.params;
     const updates = req.body;
+    const existing = await inventoryService.getBatchById(id);
 
     const result = await inventoryService.updateBatch(id, updates);
 
@@ -245,6 +316,12 @@ export async function updateBatch(
       message: "Batch updated successfully",
       data: result.data,
     });
+    const oldProductId = String(existing.data?.productId || "").trim();
+    const newProductId = String(result.data?.productId || oldProductId).trim();
+    if (oldProductId) await syncProductStockFromInventory(oldProductId);
+    if (newProductId && newProductId !== oldProductId) {
+      await syncProductStockFromInventory(newProductId);
+    }
   } catch (error) {
     console.error("Update batch error:", error);
     res.status(500).json({ success: false, message: "Failed to update batch" });
@@ -265,6 +342,7 @@ export async function deleteBatch(
     }
 
     const { id } = req.params;
+    const existing = await inventoryService.getBatchById(id);
 
     const result = await inventoryService.deleteBatch(id);
 
@@ -277,6 +355,7 @@ export async function deleteBatch(
       success: true,
       message: "Batch deleted successfully",
     });
+    await syncProductStockFromInventory(String(existing.data?.productId || ""));
   } catch (error) {
     console.error("Delete batch error:", error);
     res.status(500).json({ success: false, message: "Failed to delete batch" });

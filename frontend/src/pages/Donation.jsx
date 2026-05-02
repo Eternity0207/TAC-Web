@@ -51,6 +51,7 @@ const Donation = () => {
   const lastDonationAmount = Number(summary?.lastDonationAmount || 0);
   const lastDonationOrdersCovered = Number(summary?.lastDonationOrdersCovered || 0);
   const photos = Array.isArray(summary?.photos) ? summary.photos : [];
+  const videos = Array.isArray(summary?.videos) ? summary.videos : [];
   const sortedPhotos = useMemo(
     () =>
       [...photos].sort(
@@ -58,6 +59,14 @@ const Donation = () => {
           new Date(b?.uploadedAt || 0).getTime() - new Date(a?.uploadedAt || 0).getTime()
       ),
     [photos]
+  );
+  const sortedVideos = useMemo(
+    () =>
+      [...videos].sort(
+        (a, b) =>
+          new Date(b?.uploadedAt || 0).getTime() - new Date(a?.uploadedAt || 0).getTime()
+      ),
+    [videos]
   );
 
   return (
@@ -203,6 +212,38 @@ const Donation = () => {
                             </svg>
                           </span>
                         </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              ) : null}
+
+              {sortedVideos.length > 0 ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.42 }}
+                  className="mt-8"
+                >
+                  <h2 className="mb-4 text-xl font-bold text-gray-900 text-center">Donation Videos</h2>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    {sortedVideos.map((video, index) => (
+                      <motion.div
+                        key={video.id || index}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.05 * index, duration: 0.35 }}
+                        className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-soft"
+                      >
+                        <video
+                          src={video.url}
+                          controls
+                          preload="metadata"
+                          className="aspect-video w-full bg-black"
+                        />
+                        {video.caption ? (
+                          <p className="p-3 text-sm text-gray-600">{video.caption}</p>
+                        ) : null}
                       </motion.div>
                     ))}
                   </div>

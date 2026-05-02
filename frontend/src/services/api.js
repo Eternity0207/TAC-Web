@@ -66,9 +66,13 @@ export const apiService = {
   donation: {
     getSummary: () => API.get('/donation/summary'),
     getPhotos: () => API.get('/donation/photos'),
+    getVideos: () => API.get('/donation/videos'),
     uploadPhoto: ({ base64Image, mimeType, caption }) =>
       API.post('/donation/photos', { base64Image, mimeType, caption }),
+    uploadVideo: ({ base64Video, mimeType, caption }) =>
+      API.post('/donation/videos', { base64Video, mimeType, caption }),
     deletePhoto: (photoId) => API.delete(`/donation/photos/${photoId}`),
+    deleteVideo: (videoId) => API.delete(`/donation/videos/${videoId}`),
   },
 
   // Authentication

@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Donation Media Manager</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 0; background: #f4f7f2; color: #243022; }
+      .wrap { max-width: 980px; margin: 24px auto; padding: 0 16px 32px; }
+      .card { background: #fff; border: 1px solid #dbe7d6; border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+      h1, h2 { margin: 0 0 12px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(190px,1fr)); gap: 12px; }
+      .item { border: 1px solid #dce6d7; border-radius: 10px; overflow: hidden; background: #fff; }
+      .item img, .item video { width: 100%; height: 150px; object-fit: cover; display: block; background: #111; }
+      .meta { padding: 10px; font-size: 13px; color: #3b4b38; min-height: 56px; }
+      .actions { padding: 0 10px 10px; }
+      button { background: #3e7d2c; border: none; color: #fff; padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: 13px; }
+      button.danger { background: #c0392b; }
+      input[type="file"], input[type="text"] { width: 100%; box-sizing: border-box; margin: 8px 0; padding: 10px; border: 1px solid #cfdacb; border-radius: 8px; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .status { font-size: 13px; margin-top: 8px; color: #486443; min-height: 18px; }
+      .hint { font-size: 12px; color: #60755d; margin: 4px 0 0; }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1>Donation Media Manager</h1>
+      <p class="hint">Use this page to upload donation photos/videos that are shown on the frontend donation page.</p>
+
+      <div class="card">
+        <h2>Upload Photo</h2>
+        <input id="photoFile" type="file" accept="image/*" />
+        <input id="photoCaption" type="text" placeholder="Photo caption (optional)" />
+        <button id="uploadPhotoBtn">Upload Photo</button>
+      </div>
+
+      <div class="card">
+        <h2>Upload Video</h2>
+        <input id="videoFile" type="file" accept="video/mp4,video/webm,video/quicktime,video/*" />
+        <input id="videoCaption" type="text" placeholder="Video caption (optional)" />
+        <button id="uploadVideoBtn">Upload Video</button>
+      </div>
+
+      <div class="status" id="status"></div>
+
+      <div class="card">
+        <h2>Photos</h2>
+        <div class="grid" id="photosGrid"></div>
+      </div>
+
+      <div class="card">
+        <h2>Videos</h2>
+        <div class="grid" id="videosGrid"></div>
+      </div>
+    </div>
+
+    <script>
+      const statusEl = document.getElementById("status");
+      const photosGrid = document.getElementById("photosGrid");
+      const videosGrid = document.getElementById("videosGrid");
+      const apiBase = "/api";
+
+      function getToken() {
+        return localStorage.getItem("token") || "";
+      }
+
+      async function api(path, options = {}) {
+        const token = getToken();
+        const headers = Object.assign(
+          { "Content-Type": "application/json" },
+          options.headers || {}
+        );
+        if (token) headers.Authorization = "Bearer " + token;
+        const response = await fetch(apiBase + path, Object.assign({}, options, { headers }));
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.success === false) {
+          throw new Error(data.message || "Request failed");
+        }
+        return data;
+      }
+
+      function setStatus(message, isError) {
+        statusEl.textContent = message || "";
+        statusEl.style.color = isError ? "#c0392b" : "#486443";
+      }
+
+      function fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const result = String(reader.result || "");
+            const base64 = result.includes(",") ? result.split(",")[1] : result;
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      async function loadMedia() {
+        try {
+          const summary = await api("/donation/summary", { method: "GET" });
+          const media = summary.data || {};
+          const photos = Array.isArray(media.photos) ? media.photos : [];
+          const videos = Array.isArray(media.videos) ? media.videos : [];
+          renderPhotos(photos);
+          renderVideos(videos);
+        } catch (error) {
+          setStatus(error.message, true);
+        }
+      }
+
+      function renderPhotos(photos) {
+        if (!photos.length) {
+          photosGrid.innerHTML = '<p class="hint">No photos uploaded yet.</p>';
+          return;
+        }
+        photosGrid.innerHTML = photos.map((photo) => `
+          <div class="item">
+            <img src="${photo.url}" alt="Donation photo" />
+            <div class="meta">${photo.caption || "No caption"}</div>
+            <div class="actions">
+              <button class="danger" onclick="removePhoto('${photo.id}')">Delete</button>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      function renderVideos(videos) {
+        if (!videos.length) {
+          videosGrid.innerHTML = '<p class="hint">No videos uploaded yet.</p>';
+          return;
+        }
+        videosGrid.innerHTML = videos.map((video) => `
+          <div class="item">
+            <video src="${video.url}" controls preload="metadata"></video>
+            <div class="meta">${video.caption || "No caption"}</div>
+            <div class="actions">
+              <button class="danger" onclick="removeVideo('${video.id}')">Delete</button>
+            </div>
+          </div>
+        `).join("");
+      }
+
+      async function uploadPhoto() {
+        const fileInput = document.getElementById("photoFile");
+        const captionInput = document.getElementById("photoCaption");
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) {
+          setStatus("Please select a photo file.", true);
+          return;
+        }
+        try {
+          setStatus("Uploading photo...", false);
+          const base64Image = await fileToBase64(file);
+          await api("/donation/photos", {
+            method: "POST",
+            body: JSON.stringify({
+              base64Image,
+              mimeType: file.type || "image/jpeg",
+              caption: captionInput.value || ""
+            })
+          });
+          fileInput.value = "";
+          captionInput.value = "";
+          setStatus("Photo uploaded successfully.", false);
+          await loadMedia();
+        } catch (error) {
+          setStatus(error.message, true);
+        }
+      }
+
+      async function uploadVideo() {
+        const fileInput = document.getElementById("videoFile");
+        const captionInput = document.getElementById("videoCaption");
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) {
+          setStatus("Please select a video file.", true);
+          return;
+        }
+        try {
+          setStatus("Uploading video...", false);
+          const base64Video = await fileToBase64(file);
+          await api("/donation/videos", {
+            method: "POST",
+            body: JSON.stringify({
+              base64Video,
+              mimeType: file.type || "video/mp4",
+              caption: captionInput.value || ""
+            })
+          });
+          fileInput.value = "";
+          captionInput.value = "";
+          setStatus("Video uploaded successfully.", false);
+          await loadMedia();
+        } catch (error) {
+          setStatus(error.message, true);
+        }
+      }
+
+      async function removePhoto(photoId) {
+        if (!confirm("Delete this photo?")) return;
+        try {
+          await api("/donation/photos/" + photoId, { method: "DELETE" });
+          setStatus("Photo deleted.", false);
+          await loadMedia();
+        } catch (error) {
+          setStatus(error.message, true);
+        }
+      }
+
+      async function removeVideo(videoId) {
+        if (!confirm("Delete this video?")) return;
+        try {
+          await api("/donation/videos/" + videoId, { method: "DELETE" });
+          setStatus("Video deleted.", false);
+          await loadMedia();
+        } catch (error) {
+          setStatus(error.message, true);
+        }
+      }
+
+      document.getElementById("uploadPhotoBtn").addEventListener("click", uploadPhoto);
+      document.getElementById("uploadVideoBtn").addEventListener("click", uploadVideo);
+      loadMedia();
+
+      window.removePhoto = removePhoto;
+      window.removeVideo = removeVideo;
+    </script>
+  </body>
+</html>
