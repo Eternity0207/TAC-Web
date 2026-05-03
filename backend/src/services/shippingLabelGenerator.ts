@@ -194,6 +194,9 @@ export async function generateShippingLabelPDF(
         doc.text(`Payment: ${paymentLabel}`, x + 140, y, {
             width: contentW - 144,
         });
+        y += 10;
+        doc.fontSize(5).fillColor(gray).font("Helvetica");
+        doc.text("* Inclusive of all taxes (GST)", x + 4, y, { width: contentW - 8 });
 
         // ===== FOOTER =====
         const footerY = labelH - 20;
