@@ -52,10 +52,11 @@ export async function generateShippingLabelPDF(
             }
         }
 
-        doc.fontSize(10).fillColor("#ffffff").font("Helvetica-Bold");
-        doc.text("The Awla Company", 40, 10);
-        doc.fontSize(6).fillColor("#cccccc").font("Helvetica");
-        doc.text("SHIPPING LABEL", 40, 24);
+        doc.fontSize(9).fillColor("#ffffff").font("Helvetica-Bold");
+        doc.text("The Awla Company Pvt Ltd", 40, 8);
+        doc.fontSize(5).fillColor("#cccccc").font("Helvetica");
+        doc.text("GSTIN: 08AAMCT9879P1ZV", 40, 20);
+        doc.text("SHIPPING LABEL", 40, 28);
 
         // ===== FROM SECTION =====
         y = 48;
@@ -65,12 +66,14 @@ export async function generateShippingLabelPDF(
 
         y += 16;
         doc.fontSize(7).fillColor(black).font("Helvetica-Bold");
-        doc.text("The Awla Company", x + 4, y, { width: contentW - 8 });
+        doc.text("The Awla Company Pvt Ltd", x + 4, y, { width: contentW - 8 });
         y += 10;
         doc.fontSize(6).fillColor(gray).font("Helvetica");
+        doc.text("GSTIN: 08AAMCT9879P1ZV", x + 4, y, { width: contentW - 8 });
+        y += 8;
         doc.text("Jaipur, Rajasthan - 302001", x + 4, y, { width: contentW - 8 });
         y += 8;
-        doc.text("Ph: +91 93519 93519", x + 4, y, { width: contentW - 8 });
+        doc.text("Ph: +91 96641 61773 | +91 95539 04820", x + 4, y, { width: contentW - 8 });
 
         // ===== DIVIDER =====
         y += 14;
@@ -193,9 +196,13 @@ export async function generateShippingLabelPDF(
         });
 
         // ===== FOOTER =====
-        const footerY = labelH - 14;
+        const footerY = labelH - 20;
         doc.fontSize(5).fillColor(lightGray).font("Helvetica");
-        doc.text("theawlacompany.com", x, footerY, {
+        doc.text("The Awla Company Pvt Ltd | GSTIN: 08AAMCT9879P1ZV", x, footerY, {
+            width: contentW,
+            align: "center",
+        });
+        doc.text("Ph: +91 96641 61773 | +91 95539 04820 | theawlacompany.com", x, footerY + 7, {
             width: contentW,
             align: "center",
         });

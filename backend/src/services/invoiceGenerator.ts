@@ -13,7 +13,7 @@ type InvoiceLine = {
 
 const COMPANY_NAME = "The Awla Company Pvt Ltd";
 const COMPANY_GSTIN = "08AAMCT9879P1ZV";
-const COMPANY_PHONE = "+91 96641 61773";
+const COMPANY_PHONES = "+91 96641 61773 | +91 95539 04820";
 
 function toMoney(value: unknown): number {
   const parsed = Number(value);
@@ -85,13 +85,15 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
       }
     }
 
-    doc.fontSize(24).fillColor("#ffffff").font("Helvetica-Bold");
-    doc.text(companyName, 110, 30);
-    doc.fontSize(10).fillColor("#e0e0e0").font("Helvetica");
-    doc.text("Premium Amla Products | Royal Way to Stay Healthy", 110, 55);
+    doc.fontSize(22).fillColor("#ffffff").font("Helvetica-Bold");
+    doc.text(companyName, 110, 25);
     doc.fontSize(9).fillColor("#e0e0e0").font("Helvetica");
-    doc.text(`GSTIN: ${companyGstin}`, 110, 68);
-    doc.text(`Phone: ${COMPANY_PHONE}`, 110, 80);
+    doc.text("Premium Amla Products | Royal Way to Stay Healthy", 110, 50);
+    doc.fontSize(9).fillColor("#ffffff").font("Helvetica-Bold");
+    doc.text(`GSTIN: ${companyGstin}`, 110, 63);
+    doc.fontSize(8).fillColor("#e0e0e0").font("Helvetica");
+    doc.text(`Phone: ${COMPANY_PHONES}`, 110, 76);
+    doc.text("Email: orders@theawlacompany.com", 110, 87);
 
     doc.fontSize(12).fillColor("#ffffff").font("Helvetica-Bold");
     doc.text("INVOICE", 450, 35, { width: 100, align: "right" });
@@ -125,7 +127,7 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
         142,
       );
 
-    doc.fontSize(8).fillColor(lightGray).font("Helvetica");
+    doc.fontSize(8).fillColor(primaryColor).font("Helvetica-Bold");
     doc.text(`Company GSTIN: ${companyGstin}`, 55, 160, { width: 220 });
 
     // ===== BILLING DETAILS =====
@@ -342,6 +344,10 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
     doc.text("TOTAL:", totalsX, totalsCursorY + 10, { width: 100 });
     doc.text(totalStr, 460, totalsCursorY + 10, { width: 80, align: "right" });
 
+    // Inclusive of all taxes note
+    doc.fontSize(8).fillColor(primaryColor).font("Helvetica-Bold");
+    doc.text("* Inclusive of all taxes (GST)", totalsX - 10, totalsCursorY + 35, { width: 210, align: "right" });
+
     // ===== PAYMENT INFO =====
     if (order.paymentTransactionId) {
       const payY = totalsCursorY + 55;
@@ -376,27 +382,24 @@ export async function generateInvoicePDF(order: Order): Promise<Buffer> {
       width: pageWidth,
     });
 
-    doc.fontSize(9).fillColor(lightGray).font("Helvetica");
+    doc.fontSize(9).fillColor(darkGray).font("Helvetica-Bold");
     doc.text(`${companyName} | GSTIN: ${companyGstin}`, 40, footerY + 35, {
       align: "center",
       width: pageWidth,
     });
+    doc.fontSize(8).fillColor(lightGray).font("Helvetica");
     doc.text(
-      `Phone: ${COMPANY_PHONE} | Email: orders@theawlacompany.com | Web: theawlacompany.com`,
+      `Phone: ${COMPANY_PHONES}`,
       40,
       footerY + 50,
       { align: "center", width: pageWidth },
     );
-
-    // Terms
-    doc.fontSize(7).fillColor("#999999");
     doc.text(
-      "This is a computer-generated invoice and does not require a signature.",
+      "Email: orders@theawlacompany.com | Web: theawlacompany.com",
       40,
-      footerY + 70,
+      footerY + 62,
       { align: "center", width: pageWidth },
     );
-
     doc.end();
   });
 }
@@ -435,13 +438,15 @@ export async function generateBulkInvoicePDF(order: any): Promise<Buffer> {
       }
     }
 
-    doc.fontSize(24).fillColor("#ffffff").font("Helvetica-Bold");
-    doc.text(companyName, 110, 30);
-    doc.fontSize(10).fillColor("#e0e0e0").font("Helvetica");
-    doc.text("Premium Amla Products | Royal Way to Stay Healthy", 110, 55);
+    doc.fontSize(22).fillColor("#ffffff").font("Helvetica-Bold");
+    doc.text(companyName, 110, 25);
     doc.fontSize(9).fillColor("#e0e0e0").font("Helvetica");
-    doc.text(`GSTIN: ${companyGstin}`, 110, 68);
-    doc.text(`Phone: ${COMPANY_PHONE}`, 110, 80);
+    doc.text("Premium Amla Products | Royal Way to Stay Healthy", 110, 50);
+    doc.fontSize(9).fillColor("#ffffff").font("Helvetica-Bold");
+    doc.text(`GSTIN: ${companyGstin}`, 110, 63);
+    doc.fontSize(8).fillColor("#e0e0e0").font("Helvetica");
+    doc.text(`Phone: ${COMPANY_PHONES}`, 110, 76);
+    doc.text("Email: orders@theawlacompany.com", 110, 87);
 
     doc.fontSize(12).fillColor("#ffffff").font("Helvetica-Bold");
     doc.text("BULK ORDER INVOICE", 420, 35, { width: 130, align: "right" });
@@ -656,9 +661,12 @@ export async function generateBulkInvoicePDF(order: any): Promise<Buffer> {
       width: totalsWidth,
       align: "right",
     });
+    // Inclusive of all taxes note
+    doc.fontSize(8).fillColor(primaryColor).font("Helvetica-Bold");
+    doc.text("* Inclusive of all taxes (GST)", totalsX - 10, currentY + 30, { width: 195, align: "right" });
 
     // ===== PAYMENT BREAKDOWN =====
-    currentY += 40;
+    currentY += 50;
     doc.fontSize(10).fillColor(primaryColor).font("Helvetica-Bold");
     doc.text("PAYMENT BREAKDOWN", 55, currentY);
     doc
@@ -725,26 +733,24 @@ export async function generateBulkInvoicePDF(order: any): Promise<Buffer> {
       width: pageWidth,
     });
 
-    doc.fontSize(9).fillColor(lightGray).font("Helvetica");
+    doc.fontSize(9).fillColor(darkGray).font("Helvetica-Bold");
     doc.text(`${companyName} | GSTIN: ${companyGstin}`, 40, footerY + 35, {
       align: "center",
       width: pageWidth,
     });
+    doc.fontSize(8).fillColor(lightGray).font("Helvetica");
     doc.text(
-      `Phone: ${COMPANY_PHONE} | Email: orders@theawlacompany.com | Web: theawlacompany.com`,
+      `Phone: ${COMPANY_PHONES}`,
       40,
       footerY + 50,
       { align: "center", width: pageWidth },
     );
-
-    doc.fontSize(7).fillColor("#999999");
     doc.text(
-      "This is a computer-generated invoice and does not require a signature.",
+      "Email: orders@theawlacompany.com | Web: theawlacompany.com",
       40,
-      footerY + 70,
+      footerY + 62,
       { align: "center", width: pageWidth },
     );
-
     doc.end();
   });
 }
